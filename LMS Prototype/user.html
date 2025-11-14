@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Library Management System — User</title>
+
+<style>
+  :root{
+    --ink:#0f172a; --muted:#475569;
+    --g1:#0ea5e9; --g2:#10b981; --g3:#a78bfa;
+    --card:#ffffff;
+    --ring:rgba(16,185,129,.20);
+    --radius:14px;
+    --fast:220ms cubic-bezier(.2,.8,.2,1);
+    --slow:700ms cubic-bezier(.16,.84,.25,1);
+    --shadow:0 16px 40px rgba(2,132,199,.12);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+    background:
+      radial-gradient(900px 600px at 85% -10%, rgba(186,230,253,.45), transparent 40%),
+      radial-gradient(900px 600px at -10% 110%, rgba(167,243,208,.45), transparent 40%),
+      linear-gradient(180deg,#f8fffb 0%,#f0fbff 100%);
+  }
+
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(15,23,42,.9));
+    color:#fff;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+  }
+  .topbar{
+    max-width:1200px; margin:0 auto; padding:18px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{
+    font-weight:900; font-size:1.5rem; letter-spacing:.2px;
+    background:linear-gradient(90deg,#fff 0%, #e2f7ff 35%, #d1ffe9 70%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .nav{ display:flex; gap:18px; align-items:center; }
+  .nav a{
+    color:#e5e7eb; text-decoration:none; font-weight:700;
+    padding:6px 8px; border-radius:8px; transition:all var(--fast);
+  }
+  .nav a:hover{ background:rgba(255,255,255,.08); transform:translateY(-2px); }
+
+  .wrap{
+    max-width:1200px; margin:22px auto; padding:0 16px;
+    display:grid; grid-template-columns:260px 1fr; gap:22px;
+  }
+
+  .sidebar{
+    background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid rgba(2,132,199,.12);
+    box-shadow:var(--shadow);
+    padding:16px;
+    height:fit-content;
+  }
+  .sidebar h3{ margin:6px 0 14px; }
+  .menu{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .menu a{
+    display:block; text-decoration:none; color:var(--ink);
+    padding:10px 12px; border-radius:10px;
+    border:1px solid transparent;
+    transition:all var(--fast);
+    font-weight:700;
+  }
+  .menu a:hover{ transform:translateX(6px); background:rgba(14,165,233,.06); }
+  .menu a.active{ background:linear-gradient(90deg, rgba(16,185,129,.12), rgba(14,165,233,.10)); border-color:rgba(16,185,129,.35); }
+
+  .content{ min-height:480px; }
+  .view{
+    background:var(--card);
+    border:1px solid rgba(2,132,199,.12);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    opacity:0; transform: translateY(10px) scale(.995);
+    transition: opacity var(--slow), transform var(--slow);
+    display:none;
+  }
+  .view.active{ display:block; opacity:1; transform:none; }
+
+  .card{
+    background:#fff; border:1px solid rgba(2,132,199,.1);
+    border-radius:12px; padding:14px; box-shadow:0 10px 26px rgba(2,132,199,.08);
+  }
+  .stack{ display:grid; gap:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .btn{
+    appearance:none; border:0; border-radius:10px; height:40px;
+    padding:0 14px; font-weight:800; cursor:pointer;
+    background:linear-gradient(90deg,var(--g2),var(--g1)); color:#fff;
+    box-shadow:0 10px 24px rgba(14,165,233,.20);
+    transition:transform var(--fast), filter var(--fast), opacity var(--fast);
+  }
+  .btn:hover{ transform:translateY(-2px); filter:brightness(1.03); }
+  .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+  .btn.secondary{ background:linear-gradient(90deg,#94a3b8,#64748b); }
+  .btn.ghost{ background:#e2e8f0; color:#0f172a; }
+  .btn.small{ height:34px; padding:0 10px; }
+
+  /* tables */
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse:separate; border-spacing:0 10px; min-width:720px; }
+  th, td{ padding:12px 14px; text-align:left; vertical-align:middle; }
+  thead th{ font-size:.95rem; }
+  tbody tr{
+    background:#fff; border:1px solid rgba(2,132,199,.12);
+    border-radius:12px; box-shadow:0 6px 18px rgba(2,132,199,.08);
+  }
+  td:first-child, th:first-child{ border-top-left-radius:12px; border-bottom-left-radius:12px; }
+  td:last-child, th:last-child{ border-top-right-radius:12px; border-bottom-right-radius:12px; }
+
+  .tag{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:6px 10px; border-radius:999px; font-weight:800; font-size:.78rem;
+    background:rgba(16,185,129,.15); color:#065f46; border:1px solid rgba(16,185,129,.3);
+    line-height:1; white-space:nowrap;
+  }
+  .tag.warn{ background:rgba(234,179,8,.18); color:#78350f; border-color:rgba(234,179,8,.35); }
+  .tag.pending{ background:rgba(99,102,241,.16); color:#3730a3; border-color:rgba(99,102,241,.32); }
+
+  .muted{ color:var(--muted); }
+
+  /* status cell for proper vertical centering + no wrap */
+  .status-cell{ display:flex; align-items:center; gap:8px; white-space:nowrap; }
+
+  .cover{
+    width:40px; height:56px; border-radius:6px; display:block;
+    box-shadow:0 6px 14px rgba(2,132,199,.18);
+  }
+
+  .tiles{
+    display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px;
+    margin-bottom: 14px;
+  }
+  .tile{
+    border-radius:14px; padding:14px; color:#0b1324; font-weight:800;
+    background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(240,252,255,.9));
+    border:1px solid rgba(2,132,199,.14);
+    box-shadow:0 14px 30px rgba(14,165,233,.12);
+    display:flex; align-items:center; gap:12px;
+    transition: transform var(--fast), box-shadow var(--fast);
+  }
+  .tile:hover{ transform: translateY(-3px); box-shadow:0 18px 40px rgba(14,165,233,.22); }
+  .tile .icon{
+    width:44px; height:44px; display:grid; place-items:center; border-radius:12px; font-size:22px;
+    background:linear-gradient(135deg, rgba(14,165,233,.2), rgba(16,185,129,.2));
+  }
+  .tile .meta{ display:flex; flex-direction:column; line-height:1.15; }
+  .tile .meta .k{ font-size:1.1rem; }
+  .tile .meta .s{ font-size:.8rem; color:#475569; font-weight:700; }
+
+  .searchbar{
+    height:42px; border-radius:10px; border:1px solid rgba(2,132,199,.2);
+    padding:0 12px; width:100%;
+    outline:none; font-size:1rem;
+    transition: box-shadow var(--fast), transform var(--fast), border var(--fast);
+  }
+  .searchbar:focus{ border-color:var(--g1); box-shadow:0 0 0 6px var(--ring); transform:translateY(-1px); }
+
+  /* actions container to ensure responsive buttons */
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  .actions .btn{ flex:0 0 auto; }
+
+  /* responsive */
+  @media (max-width: 800px){
+    .tiles{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width: 560px){
+    .tiles{ grid-template-columns: 1fr; }
+    .btn{ width:100%; }
+    .row > .btn{ flex:1 1 100%; }
+    .actions .btn{ flex:1 1 100%; }
+  }
+  @media (max-width: 960px){ .wrap{ grid-template-columns:1fr; } }
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:#0f172a; color:#fff; padding:12px 16px; border-radius:10px;
+    box-shadow:0 12px 30px rgba(0,0,0,.25); opacity:0; pointer-events:none;
+    transition:opacity var(--fast), transform var(--fast);
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  /* Help / FAQ modal */
+  .help-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:40;}
+  .help-modal.show{display:flex;}
+  .help-dialog{width:min(840px,92vw);background:#fff;border-radius:14px;box-shadow:0 20px 50px rgba(2,132,199,.25);padding:16px;}
+  .help-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(2,132,199,.15);padding-bottom:8px;margin-bottom:10px;}
+  .faq-item{border:1px solid rgba(2,132,199,.12);border-radius:12px;margin:10px 0;padding:12px;}
+  .faq-item h4{margin:0 0 6px;}
+  .faq-body a{font-weight:800;text-decoration:none;color:#0ea5e9;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">Scholars’ Archive</div>
+      <nav class="nav">
+        <!-- Home removed, Help added -->
+        <a href="#" id="nav-help">Help</a>
+        <a href="#" id="nav-about">About</a>
+        <a href="#" id="nav-contact">Contact</a>
+        <a href="index.html" id="nav-logout">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <aside class="sidebar">
+      <h3>Menu</h3>
+      <ul class="menu" id="menu">
+        <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
+        <li><a href="#" data-view="search">Borrow Books</a></li>
+        <li><a href="#" data-view="mybooks">My Books</a></li>
+        <li><a href="#" data-view="fines">Pay Fines</a></li>
+      </ul>
+    </aside>
+
+    <section class="content">
+      <!-- Dashboard -->
+      <div class="view active" id="view-dashboard">
+        <h2 style="margin:6px 0 12px;">User Dashboard</h2>
+
+        <div class="tiles">
+          <div class="tile">
+            <div class="icon">📚</div>
+            <div class="meta">
+              <div class="k" id="tileLoans">0</div>
+              <div class="s">Books on Loan</div>
+            </div>
+          </div>
+          <div class="tile">
+            <div class="icon">🕒</div>
+            <div class="meta">
+              <div class="k" id="tileReserved">0</div>
+              <div class="s">Reserved (Pending)</div>
+            </div>
+          </div>
+          <div class="tile">
+            <div class="icon">💰</div>
+            <div class="meta">
+              <div class="k" id="tileFines">₹0</div>
+              <div class="s">Unpaid Fines</div>
+            </div>
+          </div>
+          <div class="tile">
+            <div class="icon">👤</div>
+            <div class="meta">
+              <div class="k" id="tileLogin">—</div>
+              <div class="s">Last Login</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack" id="glanceStack">
+          <!-- Replaced the quick tip with a compact at-a-glance card -->
+          <div class="card" id="atGlance">
+            <h3 style="margin:0 0 8px;">At a glance</h3>
+            <div class="row" style="flex-wrap:wrap; gap:12px;">
+              <div class="tile" style="flex:1 1 220px; margin:0;">
+                <div class="icon">📅</div>
+                <div class="meta">
+                  <div class="k" id="nextDue">—</div>
+                  <div class="s">Next Due Date</div>
+                </div>
+              </div>
+              <div class="tile" style="flex:1 1 220px; margin:0;">
+                <div class="icon">📝</div>
+                <div class="meta">
+                  <div class="k" id="readyHolds">0</div>
+                  <div class="s">Holds Pending</div>
+                </div>
+              </div>
+              <div class="tile" style="flex:1 1 220px; margin:0;">
+                <div class="icon">🏛️</div>
+                <div class="meta">
+                  <div class="k" id="hoursToday">Open 9:00–18:00</div>
+                  <div class="s">Library Hours Today</div>
+                </div>
+              </div>
+              <div class="tile" style="flex:1 1 220px; margin:0;">
+                <div class="icon">✅</div>
+                <div class="meta">
+                  <div class="k" id="accountStatus">Good Standing</div>
+                  <div class="s">Account Status</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Borrow Books -->
+      <div class="view" id="view-search">
+        <h2 style="margin:6px 0 12px;">Borrow Books</h2>
+        <div class="card" style="margin-bottom:12px;">
+          <input id="searchBox" class="searchbar" type="text" placeholder="Search by title, author, or ISBN…" />
+        </div>
+        <div class="card table-wrap">
+          <table aria-label="Books table">
+            <thead>
+              <tr><th>Cover</th><th>Title</th><th>Author</th><th>Year</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody id="searchResults"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- My Books -->
+      <div class="view" id="view-mybooks">
+        <h2 style="margin:6px 0 12px;">My Books</h2>
+
+        <div class="card table-wrap">
+          <h3 style="margin:0 0 8px;">Active</h3>
+          <table>
+            <thead>
+              <tr><th>Cover</th><th>Title</th><th>Due/Reserved On</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody id="activeBooksBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card table-wrap" id="borrowingHistory" style="margin-top:14px;">
+          <h3 style="margin:0 0 8px;">Borrowing History</h3>
+          <table>
+            <thead>
+              <tr><th>Cover</th><th>Title</th><th>Borrowed</th><th>Returned</th><th>Notes</th></tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pay Fines -->
+      <div class="view" id="view-fines">
+        <h2 style="margin:6px 0 12px;">Pay Fines</h2>
+        <div class="stack">
+          <!-- Total & Quick Pay -->
+          <div class="card">
+            <div class="row" style="align-items:center;justify-content:space-between;gap:14px;">
+              <p class="muted" style="margin:0;">Outstanding fines: <strong id="outstandingFines">₹120</strong></p>
+              <div class="row" style="gap:10px;">
+                <select id="fineMethod" class="searchbar" style="height:40px; max-width:200px;">
+                  <option>UPI</option>
+                  <option>Card</option>
+                  <option>NetBanking</option>
+                  <option>Cash</option>
+                </select>
+                <button class="btn" id="payAllBtn">Pay Now</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Charges (row-wise pay & invoice placeholder) -->
+          <div class="card table-wrap">
+            <h3 style="margin:0 0 8px;">Recent Charges</h3>
+            <table>
+              <thead>
+                <tr><th>Date</th><th>Reason</th><th>Amount</th><th>Method</th><th>Action</th></tr>
+              </thead>
+              <tbody id="recentChargesBody">
+                <!-- rows injected by JS for per-row controls -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Fine Payment History -->
+          <div class="card table-wrap">
+            <h3 style="margin:0 0 8px;">Fine Payment History</h3>
+            <table>
+              <thead><tr><th>Date</th><th>Method</th><th>Transaction ID</th><th>Amount</th></tr></thead>
+              <tbody id="paymentHistoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Help / FAQ Modal -->
+  <div id="helpModal" class="help-modal" aria-hidden="true">
+    <div class="help-dialog">
+      <div class="help-head">
+        <h3>User Help & FAQs</h3>
+        <button class="btn ghost" id="helpClose">Close</button>
+      </div>
+      <div id="faqBody" class="faq-body"></div>
+    </div>
+  </div>
+
+<script>
+  // --- Demo Data ---
+  let PENDING_REQUESTS = [];
+
+  const BOOKS = [
+    { id:1, title:'Clean Code', author:'Robert C. Martin', year:2008, status:'Available' },
+    { id:2, title:'You Don\u2019t Know JS', author:'Kyle Simpson', year:2015, status:'On loan' },
+    { id:3, title:'Design Patterns', author:'Gamma et al.', year:1994, status:'Available' },
+    { id:4, title:'The Pragmatic Programmer', author:'Hunt & Thomas', year:1999, status:'On loan' },
+    { id:5, title:'Refactoring', author:'Martin Fowler', year:1999, status:'Available' },
+  ];
+
+  let ON_LOAN = [
+    { id:2, title:'You Don\u2019t Know JS', due:'2025-11-18', status:'On loan' },
+    { id:4, title:'The Pragmatic Programmer', due:'2025-11-25', status:'On loan' },
+  ];
+
+  let RESERVED = []; // reservations show here as Pending Approval
+
+  const HISTORY = [
+    { title:'Eloquent JavaScript', borrowed:'2025-09-02', returned:'2025-09-20', notes:'On time' },
+    { title:'JS Patterns', borrowed:'2025-08-10', returned:'2025-08-25', notes:'On time' },
+    { title:'The Mythical Man-Month', borrowed:'2025-07-05', returned:'2025-07-19', notes:'Late 1 day' },
+  ];
+
+  // Fines
+  let RECENT_CHARGES = [
+    { id:'c1', date:'2025-10-18', reason:'Overdue — “Clean Code”', amount:80,  paid:false, method:'UPI', invoiced:false },
+    { id:'c2', date:'2025-10-22', reason:'Overdue — “Design Patterns”', amount:40, paid:false, method:'Card', invoiced:false },
+  ];
+
+  const PAYMENTS = [
+    { date:'2025-07-20', method:'UPI', tx:'UPI-9X2K1A', amount:60 },
+    { date:'2025-06-15', method:'Card', tx:'TXN-4D7H9', amount:40 },
+    { date:'2025-05-10', method:'Cash', tx:'CASH-1021', amount:30 },
+  ];
+
+
+  // --- Router / Transitions ---
+  const views = {
+    dashboard: document.getElementById('view-dashboard'),
+    search: document.getElementById('view-search'),
+    mybooks: document.getElementById('view-mybooks'),
+    fines: document.getElementById('view-fines'),
+  };
+
+  const menu = document.getElementById('menu');
+  menu.addEventListener('click', (e)=>{
+    const a = e.target.closest('a[data-view]');
+    if(!a) return;
+    e.preventDefault();
+    switchTo(a.dataset.view);
+  });
+
+  function switchTo(key, scrollSelector){
+    menu.querySelectorAll('a').forEach(x=>x.classList.toggle('active', x.dataset.view===key));
+    Object.entries(views).forEach(([k,el])=>{
+      if(k===key){ el.classList.add('active'); } else { el.classList.remove('active'); }
+    });
+    const first = views[key].querySelector('button, a, input, select');
+    if(first) first.focus({preventScroll:true});
+    if(scrollSelector){
+      const target = views[key].querySelector(scrollSelector);
+      if(target){ setTimeout(()=> target.scrollIntoView({behavior:'smooth', block:'start'}), 120); }
+    }
+  }
+
+  // --- Utilities ---
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"'`=\/]/g, s => ({
+      '&':'&amp','<':'&lt;','>':'&gt;','"':'&quot;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;',"'" :'&#x39;'
+    }[s]));
+  }
+
+  function coverDataUri(title){
+    const initials = title.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const svg =
+      `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='112'>
+        <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+          <stop offset='0%' stop-color='#0ea5e9'/><stop offset='100%' stop-color='#10b981'/>
+        </linearGradient></defs>
+        <rect rx='10' ry='10' width='100%' height='100%' fill='url(#g)'/>
+        <text x='50%' y='56%' dominant-baseline='middle' text-anchor='middle'
+              font-family='Inter,Arial' font-size='28' fill='white' font-weight='800'>${initials}</text>
+      </svg>`;
+    const base64 = btoa(unescape(encodeURIComponent(svg)));
+    return 'data:image/svg+xml;base64,' + base64;
+  }
+
+  function borrowStatusLabel(status){ return status === 'On loan' ? 'Out of stock' : status; }
+  function borrowStatusTag(status){
+    const label = borrowStatusLabel(status);
+    if (label === 'Available') return '<span class="tag">Available</span>';
+    return '<span class="tag warn">Out of Stock</span>';
+  }
+  function borrowActionLabel(status){ return borrowStatusLabel(status) === 'Available' ? 'Reserve' : 'Notify'; }
+
+  function toast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(()=> el.classList.remove('show'), 2200);
+  }
+
+  // --- Borrow (Search) ---
+  const searchResults = document.getElementById('searchResults');
+  const searchBox = document.getElementById('searchBox');
+
+  function renderSearchRows(rows){
+    searchResults.innerHTML = rows.map(b => `
+      <tr data-id="${b.id}">
+        <td><img class="cover" src="${coverDataUri(b.title)}" alt=""></td>
+        <td>${escapeHtml(b.title)}</td>
+        <td>${escapeHtml(b.author)}</td>
+        <td>${b.year}</td>
+        <td>${borrowStatusTag(b.status)}</td>
+        <td>
+          <div class="actions">
+            <button class="btn small" data-action="primary">${borrowActionLabel(b.status)}</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    // hook actions
+    searchResults.querySelectorAll('tr').forEach(tr=>{
+      const id = Number(tr.dataset.id);
+      const book = BOOKS.find(x=>x.id===id);
+      const btn = tr.querySelector('[data-action="primary"]');
+      if(!btn || !book) return;
+      btn.addEventListener('click', ()=>{
+        btn.disabled = true;
+        if (borrowStatusLabel(book.status) === 'Available'){
+          const today = new Date().toISOString().slice(0,10);
+          RESERVED.unshift({ id: book.id, title: book.title, reservedOn: today, status:'Reserved', approved: false });
+          btn.textContent = 'Reserved';
+          toast('Reserved: ' + book.title);
+          renderActive(); // ensure My Books updates immediately
+          refreshAll();
+        } else {
+          toast('We\'ll notify you when available');
+          setTimeout(()=>{ btn.disabled = false; }, 800);
+        }
+      });
+    });
+  }
+  renderSearchRows(BOOKS);
+
+  if (searchBox){
+    searchBox.addEventListener('input', ()=>{
+      const q = searchBox.value.trim().toLowerCase();
+      const rows = BOOKS.filter(b => (
+        b.title.toLowerCase().includes(q) ||
+        b.author.toLowerCase().includes(q) ||
+        String(b.year).includes(q)
+      ));
+      renderSearchRows(rows);
+    });
+  }
+
+  // --- My Books (Active + History) ---
+  const activeBody = document.getElementById('activeBooksBody');
+  function renderActive(){
+    const loanRows = ON_LOAN.map(b => `
+      <tr data-id="loan-${b.id}">
+        <td><img class="cover" src="${coverDataUri(b.title)}" alt=""></td>
+        <td>${escapeHtml(b.title)}</td>
+        <td>${b.due}</td>
+        <td class="status-cell"><span class="tag warn">On loan</span></td>
+        <td>
+          <div class="actions">
+            <button class="btn small" data-renew="${b.id}">Renew</button>
+            <button class="btn small ghost" data-return="${b.id}">Return</button>
+          </div>
+        </td>
+      </tr>
+    `);
+    const reservedRows = RESERVED.map(b => `
+      <tr data-id="res-${b.id}">
+        <td><img class="cover" src="${coverDataUri(b.title)}" alt=""></td>
+        <td>${escapeHtml(b.title)}</td>
+        <td>${b.reservedOn}</td>
+        <td class="status-cell"><span class="tag pending">Reserved · Pending Approval</span></td>
+        <td>
+          <div class="actions">
+            <button class="btn secondary small" data-cancel="${b.id}">Cancel</button>
+          </div>
+        </td>
+      </tr>
+    `);
+    activeBody.innerHTML = [...loanRows, ...reservedRows].join('');
+
+    // hook renew
+    activeBody.querySelectorAll('[data-renew]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = Number(btn.dataset.renew);
+        const row = ON_LOAN.find(x=>x.id===id);
+        if(!row) return;
+        btn.disabled = true;
+        const d = new Date(row.due);
+        d.setDate(d.getDate()+14);
+        row.due = d.toISOString().slice(0,10);
+        toast('Renewed to ' + row.due);
+        renderActive();
+        refreshAtGlance();
+      });
+    });
+
+    // hook return
+    activeBody.querySelectorAll('[data-return]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = Number(btn.dataset.return);
+        const idx = ON_LOAN.findIndex(x=>x.id===id);
+        if(idx===-1) return;
+        const book = ON_LOAN[idx];
+        ON_LOAN.splice(idx,1);
+        HISTORY.unshift({ title: book.title, borrowed: '—', returned: new Date().toISOString().slice(0,10), notes:'Returned' });
+        toast('Returned: ' + book.title);
+        renderActive();
+        refreshAll();
+      });
+    });
+
+    // hook cancel reservation
+    activeBody.querySelectorAll('[data-cancel]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = Number(btn.dataset.cancel);
+        RESERVED = RESERVED.filter(x=>x.id!==id);
+        toast('Reservation canceled');
+        renderActive();
+        refreshAll();
+      });
+    });
+  }
+  renderActive();
+
+  const historyBody = document.getElementById('historyBody');
+  historyBody.innerHTML = HISTORY.map(h => `
+    <tr>
+      <td><img class="cover" src="${coverDataUri(h.title)}" alt=""></td>
+      <td>${escapeHtml(h.title)}</td>
+      <td>${h.borrowed}</td>
+      <td>${h.returned}</td>
+      <td class="muted">${escapeHtml(h.notes)}</td>
+    </tr>
+  `).join('');
+
+  // --- Fines: totals & rows with per-row payment controls ---
+  const paymentBody = document.getElementById('paymentHistoryBody');
+
+  function renderPayments(){
+    paymentBody.innerHTML = PAYMENTS.map(p => `
+      <tr>
+        <td>${p.date}</td>
+        <td>${p.method}</td>
+        <td>${p.tx}</td>
+        <td>₹${Number(p.amount).toLocaleString()}</td>
+      </tr>
+    `).join('');
+  }
+  renderPayments();
+
+  const recentBody = document.getElementById('recentChargesBody');
+  function renderRecent(){
+    recentBody.innerHTML = RECENT_CHARGES.map(c => `
+      <tr data-id="${c.id}">
+        <td>${c.date}</td>
+        <td>${escapeHtml(c.reason)}</td>
+        <td>₹${Number(c.amount).toLocaleString()}</td>
+        <td>
+          <select class="searchbar" style="height:34px; max-width:160px;" ${c.paid?'disabled':''}>
+            <option ${c.method==='UPI'?'selected':''}>UPI</option>
+            <option ${c.method==='Card'?'selected':''}>Card</option>
+            <option ${c.method==='NetBanking'?'selected':''}>NetBanking</option>
+            <option ${c.method==='Cash'?'selected':''}>Cash</option>
+          </select>
+        </td>
+        <td>
+          <div class="actions">
+            ${c.paid
+              ? `<button class="btn small ghost" disabled>Paid</button>
+                 <button class="btn small secondary" disabled title="Awaiting accountant to issue invoice">Download Invoice</button>`
+              : `<button class="btn small" data-pay="${c.id}">Pay</button>
+                 <button class="btn small secondary" disabled title="Pay first">Download Invoice</button>`
+            }
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    updateTotals();
+    hookRowPay();
+  }
+
+  function hookRowPay(){
+    recentBody.querySelectorAll('[data-pay]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.pay;
+        const row = RECENT_CHARGES.find(r=>r.id===id);
+        if(!row || row.paid) return;
+        const tr = btn.closest('tr');
+        const sel = tr.querySelector('select');
+        row.method = sel ? sel.value : row.method;
+        row.paid = true;
+
+        const tx = (row.method==='UPI'?'UPI-':'TXN-') + Math.random().toString(36).slice(2,8).toUpperCase();
+        PAYMENTS.unshift({ date: new Date().toISOString().slice(0,10), method: row.method, tx, amount: row.amount });
+
+        renderPayments();
+        renderRecent();
+        toast('Payment successful');
+      });
+    });
+  }
+
+  function updateTotals(){
+    const unpaid = RECENT_CHARGES.filter(c=>!c.paid).reduce((a,b)=>a+b.amount,0);
+    document.getElementById('outstandingFines').textContent = '₹' + unpaid.toLocaleString();
+    document.getElementById('tileFines').textContent = '₹' + unpaid.toLocaleString();
+    document.getElementById('accountStatus').textContent = unpaid>0 ? 'Action Needed' : 'Good Standing';
+  }
+
+  document.getElementById('payAllBtn').addEventListener('click', ()=>{
+    const method = document.getElementById('fineMethod').value || 'UPI';
+    let changed = false;
+    RECENT_CHARGES.forEach(c=>{
+      if(!c.paid){
+        c.paid = true; c.method = method;
+        const tx = (method==='UPI'?'UPI-':'TXN-') + Math.random().toString(36).slice(2,8).toUpperCase();
+        PAYMENTS.unshift({ date: new Date().toISOString().slice(0,10), method, tx, amount: c.amount });
+        changed = true;
+      }
+    });
+    if(changed){ renderPayments(); renderRecent(); toast('All dues paid'); }
+  });
+
+  renderRecent();
+
+  // --- Dashboard tiles + At a glance ---
+  function formatDt(d){
+    const opts = { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' };
+    return new Intl.DateTimeFormat(undefined, opts).format(d);
+  }
+
+  function refreshTiles(){
+    document.getElementById('tileLoans').textContent = ON_LOAN.length;
+    document.getElementById('tileReserved').textContent = RESERVED.length;
+    document.getElementById('tileLogin').textContent = formatDt(new Date());
+  }
+
+  function refreshAtGlance(){
+    if(ON_LOAN.length){
+      const earliest = ON_LOAN.map(x=>x.due).sort()[0];
+      document.getElementById('nextDue').textContent = earliest;
+    } else {
+      document.getElementById('nextDue').textContent = '—';
+    }
+    document.getElementById('readyHolds').textContent = RESERVED.length;
+  }
+
+  function refreshAll(){
+    refreshTiles();
+    refreshAtGlance();
+  }
+  refreshAll();
+
+  // Deep link support
+  if(location.hash){
+    const key = location.hash.slice(1);
+    if(views[key]) switchTo(key);
+  }
+  window.addEventListener('hashchange', ()=>{
+    const key = location.hash.slice(1);
+    if(views[key]) switchTo(key);
+  });
+
+  // ---- Help / FAQs (User page only; never links to other roles) ----
+  const helpModal = document.getElementById('helpModal');
+  const faqBody = document.getElementById('faqBody');
+  document.getElementById('nav-help').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const faqs = [
+      {
+        q: 'How do I borrow a book?',
+        a: 'Go to <a href="#search" onclick="switchTo(\'search\')">Borrow Books</a>, search, and click <b>Reserve</b>. Your request will appear in <a href="#mybooks" onclick="switchTo(\'mybooks\')">My Books</a> as <em>Reserved · Pending Approval</em>.'
+      },
+      {
+        q: 'Where do I see or cancel my reservations?',
+        a: 'Open <a href="#mybooks" onclick="switchTo(\'mybooks\')">My Books</a>. Pending items show <b>Reserved · Pending Approval</b> with a <b>Cancel</b> button.'
+      },
+      {
+        q: 'How do I renew or return a book?',
+        a: 'In <a href="#mybooks" onclick="switchTo(\'mybooks\')">My Books</a>, active loans show <b>Renew</b> and <b>Return</b>. Pending reservations do not show Return.'
+      },
+      {
+        q: 'How do I pay fines?',
+        a: 'Open <a href="#fines" onclick="switchTo(\'fines\')">Pay Fines</a>, then pay per row or use <b>Pay Now</b> to clear all.'
+      },
+      {
+        q: 'What does “Pending Approval” mean?',
+        a: 'Your reservation was placed and is waiting for the Librarian to approve it. After approval, it moves to <b>On loan</b> and you’ll see <b>Renew</b>/<b>Return</b> options.'
+      }
+    ];
+    faqBody.innerHTML = faqs.map(f=>(
+      `<div class="faq-item"><h4>${f.q}</h4><div>${f.a}</div></div>`
+    )).join('');
+    helpModal.classList.add('show');
+  });
+  document.getElementById('helpClose').addEventListener('click', ()=> helpModal.classList.remove('show'));
+  helpModal.addEventListener('click', (e)=>{ if(e.target.id==='helpModal') helpModal.classList.remove('show'); });
+</script>
+</body>
+</html>
