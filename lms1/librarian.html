@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Library Management System — Librarian</title>
+
+<style>
+  :root{
+    --ink:#0f172a; --muted:#475569;
+    --g1:#0ea5e9; --g2:#10b981; --g3:#a78bfa;
+    --card:#ffffff;
+    --ring:rgba(16,185,129,.20);
+    --radius:14px;
+    --fast:220ms cubic-bezier(.2,.8,.2,1);
+    --slow:700ms cubic-bezier(.16,.84,.25,1);
+    --shadow:0 16px 40px rgba(2,132,199,.12);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+    background:
+      radial-gradient(900px 600px at 85% -10%, rgba(186,230,253,.45), transparent 40%),
+      radial-gradient(900px 600px at -10% 110%, rgba(167,243,208,.45), transparent 40%),
+      linear-gradient(180deg,#f8fffb 0%,#f0fbff 100%);
+  }
+
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(15,23,42,.9));
+    color:#fff; box-shadow:0 2px 10px rgba(0,0,0,.08);
+  }
+  .topbar{
+    max-width:1200px; margin:0 auto; padding:18px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{
+    font-weight:900; font-size:1.5rem; letter-spacing:.2px;
+    background:linear-gradient(90deg,#fff 0%, #e2f7ff 35%, #d1ffe9 70%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .nav{ display:flex; gap:18px; align-items:center; }
+  .nav a{
+    color:#e5e7eb; text-decoration:none; font-weight:700;
+    padding:6px 8px; border-radius:8px; transition:all var(--fast);
+  }
+  .nav a:hover{ background:rgba(255,255,255,.08); transform:translateY(-2px); }
+
+  .wrap{
+    max-width:1200px; margin:22px auto; padding:0 16px;
+    display:grid; grid-template-columns:260px 1fr; gap:22px;
+  }
+
+  .sidebar{
+    background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid rgba(2,132,199,.12);
+    box-shadow:var(--shadow);
+    padding:16px;
+    height:fit-content;
+  }
+  .sidebar h3{ margin:6px 0 14px; }
+  .menu{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .menu a{
+    display:block; text-decoration:none; color:var(--ink);
+    padding:10px 12px; border-radius:10px;
+    border:1px solid transparent;
+    transition:all var(--fast);
+    font-weight:700;
+  }
+  .menu a:hover{ transform:translateX(6px); background:rgba(14,165,233,.06); }
+  .menu a.active{ background:linear-gradient(90deg, rgba(16,185,129,.12), rgba(14,165,233,.10)); border-color:rgba(16,185,129,.35); }
+
+  .content{ min-height:480px; }
+  .view{
+    background:var(--card);
+    border:1px solid rgba(2,132,199,.12);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    opacity:0; transform: translateY(10px) scale(.995);
+    transition: opacity var(--slow), transform var(--slow);
+    display:none;
+  }
+  .view.active{ display:block; opacity:1; transform:none; }
+
+  .card{
+    background:#fff; border:1px solid rgba(2,132,199,.1);
+    border-radius:12px; padding:14px; box-shadow:0 10px 26px rgba(2,132,199,.08);
+  }
+  .stack{ display:grid; gap:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .btn{
+    appearance:none; border:0; border-radius:10px; height:40px;
+    padding:0 14px; font-weight:800; cursor:pointer;
+    background:linear-gradient(90deg,var(--g2),var(--g1)); color:#fff;
+    box-shadow:0 10px 24px rgba(14,165,233,.20);
+    transition:transform var(--fast), filter var(--fast);
+  }
+  .btn:hover{ transform:translateY(-2px); filter:brightness(1.03); }
+  .btn.secondary{ background:linear-gradient(90deg,#94a3b8,#64748b); }
+  .btn.warn{ background:linear-gradient(90deg,#f59e0b,#f97316); }
+  .btn.danger{ background:linear-gradient(90deg,#ef4444,#f43f5e); }
+
+  table{ width:100%; border-collapse:separate; border-spacing:0 10px; }
+  th, td{ padding:12px 14px; text-align:left; vertical-align:middle; }
+  tbody tr{
+    background:#fff; border:1px solid rgba(2,132,199,.12);
+    border-radius:12px; box-shadow:0 6px 18px rgba(2,132,199,.08);
+  }
+  td:first-child, th:first-child{ border-top-left-radius:12px; border-bottom-left-radius:12px; }
+  td:last-child, th:last-child{ border-top-right-radius:12px; border-bottom-right-radius:12px; }
+
+  .tag{
+    padding:6px 10px; border-radius:999px; font-weight:800; font-size:.78rem;
+    background:rgba(16,185,129,.15); color:#065f46; border:1px solid rgba(16,185,129,.3);
+  }
+  .tag.warn{ background:rgba(234,179,8,.18); color:#78350f; border-color:rgba(234,179,8,.35); }
+  .tag.pending{ background:rgba(99,102,241,.16); color:#3730a3; border-color:rgba(99,102,241,.32); }
+  .tag.danger{ background:rgba(239,68,68,.18); color:#991b1b; border-color:rgba(239,68,68,.35); }
+  .tag.muted{ background:rgba(148,163,184,.18); color:#334155; border-color:rgba(148,163,184,.35); }
+  .tag.success{ background:rgba(34,197,94,.18); color:#14532d; border-color:rgba(34,197,94,.35); }
+
+  .muted{ color:var(--muted); }
+
+  .cover{ width:40px; height:56px; border-radius:6px; display:block; box-shadow:0 6px 14px rgba(2,132,199,.18); }
+
+  .tiles{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+  .tile{
+    border-radius:14px; padding:14px; color:#0b1324; font-weight:800;
+    background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(240,252,255,.9));
+    border:1px solid rgba(2,132,199,.14);
+    box-shadow:0 14px 30px rgba(14,165,233,.12);
+    display:flex; align-items:center; gap:12px;
+    transition: transform var(--fast), box-shadow var(--fast);
+  }
+  .tile:hover{ transform: translateY(-3px); box-shadow:0 18px 40px rgba(14,165,233,.22); }
+  .tile .icon{
+    width:44px; height:44px; display:grid; place-items:center; border-radius:12px; font-size:22px;
+    background:linear-gradient(135deg, rgba(14,165,233,.2), rgba(16,185,129,.2));
+  }
+  .tile:nth-child(1) .icon{ background:linear-gradient(135deg, rgba(59,130,246,.2), rgba(14,165,233,.2)); }
+  .tile:nth-child(2) .icon{ background:linear-gradient(135deg, rgba(16,185,129,.2), rgba(52,211,153,.2)); }
+  .tile:nth-child(3) .icon{ background:linear-gradient(135deg, rgba(234,179,8,.2), rgba(250,204,21,.2)); }
+  .tile:nth-child(4) .icon{ background:linear-gradient(135deg, rgba(168,85,247,.2), rgba(129,140,248,.2)); }
+  .tile .meta{ display:flex; flex-direction:column; line-height:1.15; }
+  .tile .meta .k{ font-size:1.1rem; }
+  .tile .meta .s{ font-size:.8rem; color:#475569; font-weight:700; }
+
+  .toolstack{ display:grid; gap:10px; max-width:720px; }
+  .toolstack .btn{ justify-self:start; }
+
+  .mini-form{ display:grid; grid-template-columns:1fr 1fr auto; gap:10px; }
+  .input{
+    height:42px; border-radius:10px; border:1px solid rgba(2,132,199,.2);
+    padding:0 12px; outline:none; font-size:1rem;
+  }
+  .input:focus{ border-color:var(--g1); box-shadow:0 0 0 6px var(--ring); }
+
+  /* catalogue scroll area */
+  .catalogue-scroll{
+    max-height:260px;
+    overflow:auto;
+    border-radius:10px;
+    padding-right:6px;
+  }
+
+  @media (max-width: 1020px){ .tiles{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 560px){ .tiles{ grid-template-columns: 1fr; } .mini-form{ grid-template-columns:1fr; } }
+  @media (max-width: 960px){ .wrap{ grid-template-columns:1fr; } }
+
+  /* Help / FAQ modal */
+  .help-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:40;}
+  .help-modal.show{display:flex;}
+  .help-dialog{width:min(900px,92vw);background:#fff;border-radius:14px;box-shadow:0 20px 50px rgba(2,132,199,.25);padding:16px;}
+  .help-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(2,132,199,.15);padding-bottom:8px;margin-bottom:10px;}
+  .faq-item{border:1px solid rgba(2,132,199,.12);border-radius:12px;margin:10px 0;padding:12px;}
+  .faq-item h4{margin:0 0 6px;}
+  .faq-body a{font-weight:800;text-decoration:none;color:#0ea5e9;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">Scholars’ Archive</div>
+      <nav class="nav">
+        <a href="#" id="nav-help">Help</a>
+        <a href="#" id="nav-about">About</a>
+        <a href="#" id="nav-contact">Contact</a>
+        <a href="index.html" id="nav-logout">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Librarian Menu</h3>
+      <ul class="menu" id="menu">
+        <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
+        <li><a href="#" data-view="catalogue">Catalogue</a></li>
+        <li><a href="#" data-view="orders">Order History</a></li>
+        <li><a href="#" data-view="requests">Borrow Requests</a></li>
+        <li><a href="#" data-view="extensions">Extensions</a></li>
+        <li><a href="#" data-view="returns">Returns</a></li>
+        <li><a href="#" data-view="history">Borrow History</a></li>
+        <li><a href="#" data-view="fines">Fines</a></li>
+        <li><a href="#" data-view="accounts">Accounts</a></li>
+        <li><a href="#" data-view="approvals">Account Approvals</a></li>
+      </ul>
+    </aside>
+
+    <!-- Content -->
+    <section class="content">
+      <!-- Dashboard -->
+      <div class="view active" id="view-dashboard">
+        <h2 style="margin:6px 0 12px;">Librarian Dashboard</h2>
+
+        <div class="tiles">
+          <div class="tile"><div class="icon">📚</div><div class="meta"><div class="k" id="tBooks">0</div><div class="s">Titles in Catalogue</div></div></div>
+          <div class="tile"><div class="icon">🕒</div><div class="meta"><div class="k" id="tPending">0</div><div class="s">Pending Requests</div></div></div>
+          <div class="tile"><div class="icon">🔁</div><div class="meta"><div class="k" id="tLoans">0</div><div class="s">Active Loans</div></div></div>
+          <div class="tile"><div class="icon">💳</div><div class="meta"><div class="k" id="tOutstanding">₹0</div><div class="s">Outstanding Fines</div></div></div>
+        </div>
+
+        <div class="stack" style="margin-top:14px;">
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Alerts</h3>
+            <ul class="muted" style="margin:0 0 8px 18px;">
+              <li><strong id="alertPending">0</strong> borrow requests awaiting decision.</li>
+              <li><strong id="alertLoans">0</strong> active loans to track for due dates.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Recent Activity</h3>
+            <ul class="muted" id="activityFeed" style="margin:0 0 0 18px;"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Catalogue -->
+      <div class="view" id="view-catalogue">
+        <h2 style="margin:6px 0 12px;">Catalogue</h2>
+
+        <!-- Controls -->
+        <div class="card" style="margin-bottom:12px;">
+          <div class="mini-form">
+            <input id="catSearch" class="input" placeholder="Search by title, author, or ISBN…" />
+            <input id="catMinAvail" class="input" type="number" min="0" placeholder="Min available (filter)" />
+            <button class="btn" id="catClear">Clear</button>
+          </div>
+        </div>
+
+        <!-- Scrollable visual catalogue with editable 'available' and Update button -->
+        <div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div class="muted">Edit available copies directly below, then click <strong>Update</strong> to apply changes.</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn secondary" id="resetAvail">Reset</button>
+              <button class="btn" id="applyUpdate">Update</button>
+            </div>
+          </div>
+
+          <div class="catalogue-scroll card" style="padding:8px 12px;">
+            <table style="margin:0;">
+              <thead><tr><th>Cover</th><th>Title</th><th>Author</th><th>Year</th><th>Avail (edit)</th><th>Status</th></tr></thead>
+              <tbody id="catalogueBodyEditable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Add new book form (below the scroll window) -->
+        <div class="card" style="margin-bottom:12px;">
+          <h3 style="margin:0 0 8px;">Add New Book</h3>
+          <div class="mini-form" style="margin-bottom:10px;">
+            <input id="newTitle" class="input" placeholder="Book title" />
+            <input id="newAuthor" class="input" placeholder="Author" />
+            <input id="newCopies" class="input" type="number" min="1" placeholder="Number of copies" />
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn" id="addBook">Add</button>
+            <button class="btn secondary" id="clearAdd">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order History (separate view) -->
+      <div class="view" id="view-orders">
+        <h2 style="margin:6px 0 12px;">Order History — New Books</h2>
+
+        <div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div class="muted">Filter orders:</div>
+            <select id="orderFilter" class="input" style="width:180px;">
+              <option value="all">All</option>
+              <option value="Success">Success</option>
+              <option value="Failed">Failed</option>
+            </select>
+            <input id="orderSearch" class="input" placeholder="Search by order id or book…" style="min-width:240px;" />
+            <button class="btn" id="orderRefresh">Refresh</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>Order ID</th><th>Book</th><th>Added By</th><th>Date</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Borrow Requests -->
+      <div class="view" id="view-requests">
+        <h2 style="margin:6px 0 12px;">Borrow Requests</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Cover</th><th>Title</th><th>User</th><th>Requested</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="requestsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Extensions -->
+      <div class="view" id="view-extensions">
+        <h2 style="margin:6px 0 12px;">Extensions</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Cover</th><th>Title</th><th>User</th><th>Current Due</th><th>Duration</th><th>Action</th></tr></thead>
+            <tbody id="extensionsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Returns -->
+      <div class="view" id="view-returns">
+        <h2 style="margin:6px 0 12px;">Process Returns</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Cover</th><th>Title</th><th>User</th><th>Due</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="returnsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Borrow History -->
+      <div class="view" id="view-history">
+        <h2 style="margin:6px 0 12px;">Borrow History</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Cover</th><th>Title</th><th>User</th><th>Borrowed</th><th>Returned</th><th>Notes</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Fines -->
+      <div class="view" id="view-fines">
+        <h2 style="margin:6px 0 12px;">Fines</h2>
+        <div class="stack">
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Outstanding / Pending Fines</h3>
+            <table>
+              <thead><tr><th>User</th><th>Reason</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody id="finesBody"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Payment History</h3>
+            <table>
+              <thead><tr><th>Date</th><th>User</th><th>Method</th><th>Txn ID</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody id="paymentsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accounts -->
+      <div class="view" id="view-accounts">
+        <h2 style="margin:6px 0 12px;">Accounts</h2>
+        <div class="card" style="margin-bottom:12px;">
+          <div class="mini-form">
+            <input id="accSearch" class="input" placeholder="Search user by name…" />
+            <select id="accRole" class="input">
+              <option value="">All roles</option>
+              <option>User</option>
+              <option>Librarian</option>
+              <option>Stock Manager</option>
+              <option>Accountant</option>
+            </select>
+            <button class="btn" id="accClear">Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Loans</th><th>Fines</th><th>Action</th></tr></thead>
+            <tbody id="accountsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NEW: Account Approvals -->
+      <div class="view" id="view-approvals">
+        <h2 style="margin:6px 0 12px;">Account Approvals</h2>
+        <div class="card">
+          <p class="muted" style="margin:0 0 8px;">
+            Approve or reject pending <strong>Stock Manager</strong> and <strong>Accountant</strong> signup requests.
+          </p>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Phone</th><th>Requested</th><th>Action</th></tr></thead>
+            <tbody id="approvalsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Help / FAQ Modal -->
+  <div id="helpModal" class="help-modal" aria-hidden="true">
+    <div class="help-dialog">
+      <div class="help-head">
+        <h3>Librarian Help & FAQs</h3>
+        <button class="btn secondary" id="helpClose">Close</button>
+      </div>
+      <div id="faqBody" class="faq-body"></div>
+    </div>
+  </div>
+
+<script>
+  // ===== Local session/seed for approvals =====
+  const SEED = {
+    users: [
+      {email:'librarian@lib.test', pass:'lib123', name:'Head Librarian', role:'librarian', approved:true},
+      {email:'akash@uni.test', pass:'user123', name:'Akash Roy', role:'user', approved:true},
+      {email:'acct@lib.test', pass:'acct123', name:'Pranav Sen', role:'accountant', approved:true},
+      {email:'stock@lib.test', pass:'stock123', name:'Ria Kapoor', role:'stock_manager', approved:true}
+    ],
+    accountRequests: []
+  };
+  function seed(){ if(!localStorage.getItem('lms:data')) localStorage.setItem('lms:data', JSON.stringify(SEED)); }
+  function readLS(){ seed(); return JSON.parse(localStorage.getItem('lms:data')); }
+  function writeLS(d){ localStorage.setItem('lms:data', JSON.stringify(d)); }
+
+  // ===== Demo Data =====
+  const CATALOGUE = [
+    { id:1, title:'Clean Code', author:'Robert C. Martin', year:2008, available:1, min:3 },
+    { id:2, title:'You Don’t Know JS', author:'Kyle Simpson', year:2015, available:0, min:2 },
+    { id:3, title:'Design Patterns', author:'Gamma et al.', year:1994, available:4, min:2 },
+    { id:4, title:'The Pragmatic Programmer', author:'Hunt & Thomas', year:1999, available:2, min:3 },
+    { id:5, title:'Refactoring', author:'Martin Fowler', year:1999, available:5, min:2 },
+  ];
+
+  let LOANS = [
+    { title:'You Don’t Know JS', student:'Akash Roy', due:'2025-11-18', status:'On loan' },
+    { title:'The Pragmatic Programmer', student:'Akash Roy', due:'2025-11-25', status:'On loan' },
+  ];
+
+  let REQUESTS = [
+    { title:'The Clean Coder', student:'A. Sharma', date:'2025-11-06', status:'Pending' },
+    { title:'Introduction to Algorithms', student:'V. Rao', date:'2025-11-05', status:'Pending' },
+  ];
+
+  let HISTORY = [
+    { title:'Eloquent JavaScript', student:'N. Ghosh', borrowed:'2025-09-02', returned:'2025-09-20', notes:'On time' },
+    { title:'JS Patterns', student:'A. Sharma', borrowed:'2025-08-10', returned:'2025-08-25', notes:'On time' },
+    { title:'The Mythical Man-Month', student:'K. Sen', borrowed:'2025-07-05', returned:'2025-07-19', notes:'Late 1 day' },
+  ];
+
+  const OUTSTANDING = [
+    { user:'Akash Roy', reason:'Overdue — “Clean Code”', amount:80, date:'2025-10-18', status:'Unpaid' },
+    { user:'Akash Roy', reason:'Overdue — “Design Patterns”', amount:40, date:'2025-10-22', status:'Unpaid' },
+    { user:'R. Dutta', reason:'Lost — “Refactoring”', amount:250, date:'2025-11-01', status:'Pending' },
+  ];
+  const PAYMENTS = [
+    { date:'2025-11-07', user:'A. Sharma', method:'UPI', tx:'UPI-9X2K1A', amount:120, status:'Success' },
+    { date:'2025-11-06', user:'Akash Roy', method:'Card', tx:'TXN-4D7H9', amount:40, status:'Success' },
+  ];
+
+  let USERS = [
+    { name:'Akash Roy', role:'User', active:true, loans:2, fines:120 },
+    { name:'Head Librarian', role:'Librarian', active:true, loans:0, fines:0 },
+    { name:'A. Sharma', role:'User', active:true, loans:1, fines:0 },
+    { name:'V. Rao', role:'User', active:true, loans:0, fines:0 },
+    { name:'K. Sen', role:'User', active:false, loans:0, fines:0 },
+    { name:'Stock Lead', role:'Stock Manager', active:true, loans:0, fines:0 },
+    { name:'Account Ops', role:'Accountant', active:true, loans:0, fines:0 },
+  ];
+
+  // Extension requests
+  let EXTENSIONS = [
+    { title:'You Don’t Know JS', student:'Akash Roy', currentDue:'2025-11-18' },
+    { title:'The Pragmatic Programmer', student:'Akash Roy', currentDue:'2025-11-25' },
+  ];
+
+  let ACTIVITY = [
+    'Borrow request received for “The Clean Coder” — A. Sharma',
+    'Low stock: “Clean Code” (1 available, min 3)',
+  ];
+
+  // Orders for newly added books (sample). `added` flags control whether order's book is already added to catalogue.
+  let NEW_ORDERS = [
+    { id:'ORD-1001', book:'Modern JS', addedBy:'Stock Lead', date:'2025-10-30', amount:450, status:'Success', added:false },
+    { id:'ORD-1002', book:'Algo Deep Dive', addedBy:'Stock Lead', date:'2025-10-28', amount:1200, status:'Failed', added:false },
+    { id:'ORD-1003', book:'Practical Algorithms', addedBy:'Stock Lead', date:'2025-11-02', amount:700, status:'Success', added:false }
+  ];
+
+  // ===== Router / Views mapping =====
+  const views = {
+    dashboard: document.getElementById('view-dashboard'),
+    catalogue: document.getElementById('view-catalogue'),
+    orders: document.getElementById('view-orders'),
+    requests: document.getElementById('view-requests'),
+    extensions: document.getElementById('view-extensions'),
+    returns: document.getElementById('view-returns'),
+    history: document.getElementById('view-history'),
+    fines: document.getElementById('view-fines'),
+    accounts: document.getElementById('view-accounts'),
+    approvals: document.getElementById('view-approvals'),
+  };
+
+  const menu = document.getElementById('menu');
+  menu.addEventListener('click', (e)=>{
+    const a = e.target.closest('a[data-view]');
+    if(!a) return;
+    e.preventDefault();
+    switchTo(a.dataset.view);
+  });
+
+  function switchTo(key){
+    document.querySelectorAll('.menu a').forEach(x=>x.classList.toggle('active', x.dataset.view===key));
+    Object.entries(views).forEach(([k,el])=>{
+      if(k===key){ el.classList.add('active'); } else { el.classList.remove('active'); }
+    });
+    const first = views[key].querySelector('button, a, input, select');
+    if(first) first.focus({preventScroll:true});
+    if(key==='approvals') renderApprovals();
+    if(key==='orders') renderOrders();
+  }
+
+  // ===== Utilities =====
+  const fmtINR = n => '₹' + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+  const escapeHtml = str => String(str).replace(/[&<>"'`=\/]/g, s => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'
+  }[s]));
+  function coverDataUri(title){
+    const initials = title.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+    const svg =
+      `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='112'>
+        <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+          <stop offset='0%' stop-color='#0ea5e9'/><stop offset='100%' stop-color='#10b981'/>
+        </linearGradient></defs>
+        <rect rx='10' ry='10' width='100%' height='100%' fill='url(#g)'/>
+        <text x='50%' y='56%' dominant-baseline='middle' text-anchor='middle'
+              font-family='Inter,Arial' font-size='28' fill='white' font-weight='800'>${initials}</text>
+      </svg>`;
+    const base64 = btoa(unescape(encodeURIComponent(svg)));
+    return 'data:image/svg+xml;base64,' + base64;
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function addDays(dateStr, days){
+    const d = new Date(dateStr); d.setDate(d.getDate()+days);
+    return d.toISOString().slice(0,10);
+  }
+
+  // ===== Dashboard numbers =====
+  function computeTiles(){
+    document.getElementById('tBooks').textContent = CATALOGUE.length;
+    document.getElementById('tPending').textContent = REQUESTS.filter(r=>r.status==='Pending').length;
+    document.getElementById('tLoans').textContent = LOANS.length;
+    const outstandingTotal = OUTSTANDING.reduce((a,b)=>a+b.amount,0);
+    document.getElementById('tOutstanding').textContent = fmtINR(outstandingTotal);
+    document.getElementById('alertPending').textContent = REQUESTS.filter(r=>r.status==='Pending').length;
+    document.getElementById('alertLoans').textContent = LOANS.length;
+  }
+  computeTiles();
+
+  function refreshActivity(){
+    document.getElementById('activityFeed').innerHTML =
+      ACTIVITY.slice(0,8).map(a=>`<li>${escapeHtml(a)}</li>`).join('');
+  }
+  refreshActivity();
+
+  // ===== Catalogue (editable + add) =====
+  const catalogueBodyEditable = document.getElementById('catalogueBodyEditable');
+
+  function statusTag(book){
+    if (book.available === 0) return '<span class="tag danger">Out of stock</span>';
+    if (book.available <= 3) return '<span class="tag warn">Low</span>';
+    return '<span class="tag">OK</span>';
+  }
+
+  function filteredCatalogueRows(){
+    const q = document.getElementById('catSearch').value.trim().toLowerCase();
+    const min = Number(document.getElementById('catMinAvail').value || 0);
+    return CATALOGUE.filter(b =>
+      (b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q) || String(b.year).includes(q))
+      && b.available >= min
+    );
+  }
+
+  function renderCatalogueEditable(rows){
+    catalogueBodyEditable.innerHTML = rows.map(b=>`
+      <tr data-id="${b.id}">
+        <td><img class="cover" src="${coverDataUri(b.title)}" alt=""></td>
+        <td style="min-width:220px">${escapeHtml(b.title)}</td>
+        <td style="min-width:160px">${escapeHtml(b.author)}</td>
+        <td>${b.year}</td>
+        <td>
+          <input class="input avail-input" type="number" min="0" style="width:92px;height:36px;padding:6px;border-radius:8px;border:1px solid rgba(2,132,199,.12);" value="${Number(b.available)}" data-id="${b.id}" />
+        </td>
+        <td>${statusTag(b)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function applyCatalogueUpdate(){
+    const inputs = Array.from(document.querySelectorAll('.avail-input'));
+    inputs.forEach(inp=>{
+      const id = Number(inp.dataset.id);
+      const val = Number(inp.value || 0);
+      const book = CATALOGUE.find(b=>b.id===id);
+      if(book){
+        if(book.available !== val){
+          ACTIVITY.unshift(`Catalogue updated: "${book.title}" available changed ${book.available} → ${val}`);
+          book.available = val;
+        }
+      }
+    });
+    renderCatalogueEditable(filteredCatalogueRows());
+    computeTiles();
+    refreshActivity();
+  }
+
+  function resetCatalogueInputs(){
+    document.querySelectorAll('.avail-input').forEach(inp=>{
+      const id = Number(inp.dataset.id);
+      const book = CATALOGUE.find(b=>b.id===id);
+      if(book) inp.value = book.available;
+    });
+  }
+
+  function addNewBook(){
+    const title = document.getElementById('newTitle').value.trim();
+    const author = document.getElementById('newAuthor').value.trim();
+    const copies = Number(document.getElementById('newCopies').value || 0);
+    if(!title || !author || copies < 1){
+      alert('Please provide title, author and at least 1 copy.');
+      return;
+    }
+    const newId = CATALOGUE.length ? Math.max(...CATALOGUE.map(b=>b.id)) + 1 : 1;
+    const newBook = { id:newId, title, author, year:(new Date()).getFullYear(), available:copies, min:1 };
+    CATALOGUE.push(newBook);
+
+    // create an order entry and mark as Success and added=true (because we've already added to catalogue)
+    const orderId = 'ORD-' + (1000 + NEW_ORDERS.length + 1);
+    NEW_ORDERS.unshift({
+      id: orderId,
+      book: title,
+      addedBy: 'Stock Lead',
+      date: today(),
+      amount: copies * 100,
+      status: 'Success',
+      added: true
+    });
+
+    ACTIVITY.unshift(`Added new book: "${title}" (${copies} copies)`);
+    // clear form
+    document.getElementById('newTitle').value = '';
+    document.getElementById('newAuthor').value = '';
+    document.getElementById('newCopies').value = '';
+    renderCatalogueEditable(filteredCatalogueRows());
+    renderOrders();
+    computeTiles();
+    refreshActivity();
+    const scroll = document.querySelector('.catalogue-scroll');
+    if(scroll) scroll.scrollTop = 0;
+  }
+
+  // ===== Orders (new view) =====
+  const ordersBody = document.getElementById('ordersBody');
+
+  function renderOrders(){
+    const filter = document.getElementById('orderFilter') ? document.getElementById('orderFilter').value : 'all';
+    const q = document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.trim().toLowerCase() : '';
+    let items = NEW_ORDERS.slice();
+    if(filter !== 'all') items = items.filter(i => i.status === filter);
+    if(q) items = items.filter(i => i.id.toLowerCase().includes(q) || i.book.toLowerCase().includes(q));
+    ordersBody.innerHTML = items.length ? items.map(o=>`
+      <tr data-id="${o.id}">
+        <td>${escapeHtml(o.id)}</td>
+        <td>${escapeHtml(o.book)}</td>
+        <td>${escapeHtml(o.addedBy)}</td>
+        <td>${escapeHtml(o.date)}</td>
+        <td>${fmtINR(o.amount)}</td>
+        <td>${o.status === 'Success' ? '<span class="tag success">Success</span>' : '<span class="tag danger">Failed</span>'}</td>
+        <td>
+          ${o.status === 'Success'
+            ? (o.added ? '<span class="muted">Added</span>' : `<button class="btn" data-add-order="${o.id}" style="height:34px;padding:0 10px;">Add</button>`)
+            : '<span class="muted">—</span>'}
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="7" class="muted">No orders match the selected filter/search.</td></tr>`;
+
+    // wire Add buttons (for success-status orders that aren't added yet)
+    ordersBody.querySelectorAll('button[data-add-order]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-add-order');
+        addOrderToCatalogue(id);
+      });
+    });
+  }
+
+  // Add a successfully paid order's book to catalogue (inferring copies from amount)
+  function addOrderToCatalogue(orderId){
+    const oIndex = NEW_ORDERS.findIndex(x=>x.id===orderId);
+    if(oIndex === -1) return alert('Order not found.');
+    const order = NEW_ORDERS[oIndex];
+    if(order.status !== 'Success') return alert('Only successful orders can be added.');
+    if(order.added) return alert('This order has already been added to the catalogue.');
+
+    // infer copies from amount if possible (assuming amount = copies * 100), fallback to 1
+    let inferredCopies = Math.max(1, Math.round(Number(order.amount || 100) / 100));
+    // prevent duplicate titles in catalogue — if exists, just increment available
+    const existing = CATALOGUE.find(b => b.title.toLowerCase() === order.book.toLowerCase());
+    if(existing){
+      existing.available = existing.available + inferredCopies;
+      ACTIVITY.unshift(`Order ${order.id} added: increased "${existing.title}" by ${inferredCopies} copies`);
+    } else {
+      const newId = CATALOGUE.length ? Math.max(...CATALOGUE.map(b=>b.id)) + 1 : 1;
+      const newBook = {
+        id: newId,
+        title: order.book,
+        author: 'Unknown', // unknown from order — user can edit later
+        year: (new Date()).getFullYear(),
+        available: inferredCopies,
+        min: 1
+      };
+      CATALOGUE.push(newBook);
+      ACTIVITY.unshift(`Order ${order.id} added: "${order.book}" (${inferredCopies} copies) added to catalogue`);
+    }
+
+    // mark order as added so Add button disappears
+    order.added = true;
+
+    renderCatalogueEditable(filteredCatalogueRows());
+    renderOrders();
+    computeTiles();
+    refreshActivity();
+  }
+
+  // Wire order filters
+  document.getElementById('orderFilter').addEventListener('change', ()=>renderOrders());
+  document.getElementById('orderSearch').addEventListener('input', ()=>renderOrders());
+  document.getElementById('orderRefresh').addEventListener('click', ()=>renderOrders());
+
+  // ===== Borrow Requests =====
+  const requestsBody = document.getElementById('requestsBody');
+  function renderRequests(){
+    requestsBody.innerHTML = REQUESTS.map((r,idx)=>`
+      <tr>
+        <td><img class="cover" src="${coverDataUri(r.title)}" alt=""></td>
+        <td>${escapeHtml(r.title)}</td>
+        <td>${escapeHtml(r.student)}</td>
+        <td>${r.date}</td>
+        <td>${r.status==='Pending'
+              ? '<span class="tag pending">Pending</span>'
+              : r.status==='Approved'
+                ? '<span class="tag success">Approved</span>'
+                : '<span class="tag danger">Denied</span>'}
+        </td>
+        <td>
+          ${r.status==='Pending'
+            ? `<button class="btn" style="height:34px;padding:0 10px;" data-approve="${idx}">Approve</button>
+               <button class="btn secondary" style="height:34px;padding:0 10px;" data-deny="${idx}">Deny</button>`
+            : '<span class="muted">—</span>'
+          }
+        </td>
+      </tr>
+    `).join('');
+
+    requestsBody.querySelectorAll('button[data-approve]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const i = Number(b.dataset.approve);
+        REQUESTS[i].status='Approved';
+        LOANS.push({ title:REQUESTS[i].title, student:REQUESTS[i].student, due:addDays(today(),7), status:'On loan' });
+        const cat = CATALOGUE.find(x=>x.title===REQUESTS[i].title);
+        if(cat && cat.available>0) cat.available -= 1;
+        ACTIVITY.unshift(`Approved borrow: “${REQUESTS[i].title}” — ${REQUESTS[i].student}`);
+        renderRequests(); renderReturns(); renderCatalogueEditable(filteredCatalogueRows()); computeTiles(); refreshActivity();
+      });
+    });
+    requestsBody.querySelectorAll('button[data-deny]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const i = Number(b.dataset.deny);
+        REQUESTS[i].status='Denied';
+        ACTIVITY.unshift(`Denied borrow: “${REQUESTS[i].title}” — ${REQUESTS[i].student}`);
+        renderRequests(); computeTiles(); refreshActivity();
+      });
+    });
+  }
+  renderRequests();
+
+  // ===== Extensions =====
+  const extensionsBody = document.getElementById('extensionsBody');
+  function renderExtensions(){
+    extensionsBody.innerHTML = EXTENSIONS.map((e,idx)=>`
+      <tr>
+        <td><img class="cover" src="${coverDataUri(e.title)}" alt=""></td>
+        <td>${escapeHtml(e.title)}</td>
+        <td>${escapeHtml(e.student)}</td>
+        <td>${e.currentDue}</td>
+        <td><span class="tag pending">+10 days</span></td>
+        <td>
+          <button class="btn" style="height:34px;padding:0 10px;" data-extend="${idx}">Extend</button>
+          <button class="btn secondary" style="height:34px;padding:0 10px;" data-cancel="${idx}">Cancel</button>
+        </td>
+      </tr>
+    `).join('');
+
+    extensionsBody.querySelectorAll('button[data-extend]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = Number(btn.dataset.extend);
+        const req = EXTENSIONS[i];
+        const loan = LOANS.find(l => l.title===req.title && l.student===req.student);
+        if(loan){ loan.due = addDays(loan.due, 10); }
+        ACTIVITY.unshift(`Extended loan: “${req.title}” for ${req.student} by 10 day(s)`);
+        EXTENSIONS.splice(i,1);
+        renderExtensions(); renderReturns(); refreshActivity();
+      });
+    });
+
+    extensionsBody.querySelectorAll('button[data-cancel]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = Number(btn.dataset.cancel);
+        const req = EXTENSIONS[i];
+        ACTIVITY.unshift(`Cancelled extension request — “${req.title}” for ${req.student}`);
+        EXTENSIONS.splice(i,1);
+        renderExtensions(); refreshActivity();
+      });
+    });
+  }
+  renderExtensions();
+
+  // ===== Returns =====
+  const returnsBody = document.getElementById('returnsBody');
+  function renderReturns(){
+    returnsBody.innerHTML = LOANS.map((i,idx)=>`
+      <tr>
+        <td><img class="cover" src="${coverDataUri(i.title)}" alt=""></td>
+        <td>${escapeHtml(i.title)}</td>
+        <td>${escapeHtml(i.student)}</td>
+        <td>${i.due}</td>
+        <td><span class="tag warn">${i.status}</span></td>
+        <td>
+          <button class="btn" style="height:34px;padding:0 10px;" data-return="${idx}">Mark Returned</button>
+        </td>
+      </tr>
+    `).join('');
+
+    returnsBody.querySelectorAll('button[data-return]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = Number(btn.dataset.return);
+        const loan = LOANS[i];
+        const cat = CATALOGUE.find(x=>x.title===loan.title);
+        if(cat) cat.available += 1;
+        HISTORY.unshift({ title: loan.title, student: loan.student, borrowed: loan.due, returned: today(), notes:'Returned' });
+        LOANS.splice(i,1);
+        ACTIVITY.unshift(`Returned: “${loan.title}” by ${loan.student}`);
+        renderReturns(); renderCatalogueEditable(filteredCatalogueRows()); renderHistory();
+        computeTiles(); refreshActivity();
+      });
+    });
+  }
+  renderReturns();
+
+  // ===== History =====
+  const historyBody = document.getElementById('historyBody');
+  function renderHistory(){
+    historyBody.innerHTML = HISTORY.map(h=>`
+      <tr>
+        <td><img class="cover" src="${coverDataUri(h.title)}" alt=""></td>
+        <td>${escapeHtml(h.title)}</td>
+        <td>${escapeHtml(h.student)}</td>
+        <td>${h.borrowed}</td>
+        <td>${h.returned}</td>
+        <td class="muted">${escapeHtml(h.notes)}</td>
+      </tr>
+    `).join('');
+  }
+  renderHistory();
+
+  // ===== Fines =====
+  const finesBody = document.getElementById('finesBody');
+  finesBody.innerHTML = OUTSTANDING.map(f=>`
+    <tr>
+      <td>${escapeHtml(f.user)}</td>
+      <td>${escapeHtml(f.reason)}</td>
+      <td>${fmtINR(f.amount)}</td>
+      <td>${f.date}</td>
+      <td><span class="${f.status==='Pending'?'tag warn': 'tag danger'}">${f.status}</span></td>
+    </tr>
+  `).join('');
+  const paymentsBody = document.getElementById('paymentsBody');
+  paymentsBody.innerHTML = PAYMENTS.map(p=>`
+    <tr>
+      <td>${p.date}</td>
+      <td>${escapeHtml(p.user)}</td>
+      <td>${p.method}</td>
+      <td>${p.tx}</td>
+      <td>${fmtINR(p.amount)}</td>
+      <td><span class="tag success">${p.status}</span></td>
+    </tr>
+  `).join('');
+
+  // ===== Accounts =====
+  const accountsBody = document.getElementById('accountsBody');
+  function renderAccounts(rows){
+    accountsBody.innerHTML = rows.map((u,idx)=>`
+      <tr>
+        <td>${escapeHtml(u.name)}</td>
+        <td><span class="tag muted">${escapeHtml(u.role)}</span></td>
+        <td>${u.active ? '<span class="tag success">Active</span>' : '<span class="tag danger">Inactive</span>'}</td>
+        <td>${u.loans}</td>
+        <td>${u.fines ? fmtINR(u.fines) : '—'}</td>
+        <td class="row" style="gap:8px;">
+          <button class="btn" style="height:34px;padding:0 10px;" data-toggle="${idx}">${u.active?'Deactivate':'Activate'}</button>
+          <button class="btn danger" style="height:34px;padding:0 10px;" data-del="${idx}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    accountsBody.querySelectorAll('button[data-toggle]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = Number(btn.dataset.toggle);
+        USERS[i].active = !USERS[i].active;
+        ACTIVITY.unshift(`${USERS[i].active?'Activated':'Deactivated'} account — ${USERS[i].name} (${USERS[i].role})`);
+        renderAccounts(filteredAccounts()); refreshActivity();
+      });
+    });
+
+    accountsBody.querySelectorAll('button[data-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = Number(btn.dataset.del);
+        const u = USERS[i];
+        if(confirm(`Delete account: ${u.name} (${u.role})? This cannot be undone.`)){
+          USERS.splice(i,1);
+          ACTIVITY.unshift(`Deleted account — ${u.name} (${u.role})`);
+          renderAccounts(filteredAccounts()); refreshActivity();
+        }
+      });
+    });
+  }
+  function filteredAccounts(){
+    const q = document.getElementById('accSearch').value.trim().toLowerCase();
+    const role = document.getElementById('accRole').value;
+    return USERS.filter(u =>
+      (!role || u.role===role) &&
+      u.name.toLowerCase().includes(q)
+    );
+  }
+  renderAccounts(USERS);
+  document.getElementById('accSearch').addEventListener('input', ()=>renderAccounts(filteredAccounts()));
+  document.getElementById('accRole').addEventListener('change', ()=>renderAccounts(filteredAccounts()));
+  document.getElementById('accClear').addEventListener('click', ()=>{
+    document.getElementById('accSearch').value=''; document.getElementById('accRole').value='';
+    renderAccounts(USERS);
+  });
+
+  // ===== Account Approvals (from localStorage) =====
+  const approvalsBody = document.getElementById('approvalsBody');
+
+  function renderApprovals(){
+    const data = readLS();
+    const pending = (data.accountRequests||[]).filter(r => (r.role==='accountant' || r.role==='stock_manager') && !r.approved);
+    approvalsBody.innerHTML = pending.length ? pending.map((r,idx)=>`
+      <tr data-id="${r.id}">
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.email)}</td>
+        <td><span class="tag muted">${r.role==='accountant'?'Accountant':'Stock Manager'}</span></td>
+        <td>${escapeHtml(r.phone||'—')}</td>
+        <td>${(r.date||'').slice(0,10)}</td>
+        <td class="row" style="gap:8px;">
+          <button class="btn" style="height:34px;padding:0 10px;" data-approve="${r.id}">Approve</button>
+          <button class="btn secondary" style="height:34px;padding:0 10px;" data-reject="${r.id}">Reject</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="6" class="muted">No pending requests.</td></tr>`;
+
+    approvalsBody.querySelectorAll('[data-approve]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-approve');
+        const d = readLS();
+        const i = d.accountRequests.findIndex(x=>x.id===id);
+        if(i>-1){
+          const r = d.accountRequests[i];
+          r.approved = true;
+          if(!d.users.some(u=>u.email.toLowerCase()===r.email.toLowerCase())){
+            d.users.push({ email:r.email, pass:r.pass, name:r.name, role:r.role, approved:true });
+          } else {
+            d.users = d.users.map(u=> u.email.toLowerCase()===r.email.toLowerCase() ? {...u, approved:true} : u);
+          }
+          writeLS(d);
+          ACTIVITY.unshift(`Approved account: ${r.name} (${r.role})`);
+          renderApprovals(); refreshActivity();
+        }
+      });
+    });
+
+    approvalsBody.querySelectorAll('[data-reject]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-reject');
+        const d = readLS();
+        const i = d.accountRequests.findIndex(x=>x.id===id);
+        if(i>-1){
+          const r = d.accountRequests[i];
+          d.accountRequests.splice(i,1);
+          writeLS(d);
+          ACTIVITY.unshift(`Rejected account: ${r.name} (${r.role})`);
+          renderApprovals(); refreshActivity();
+        }
+      });
+    });
+  }
+
+  // ===== Help / FAQs =====
+  const helpModal = document.getElementById('helpModal');
+  const faqBody = document.getElementById('faqBody');
+  document.getElementById('nav-help').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const faqs = [
+      { q:'How do I approve new staff accounts?', a:'Open <a href="#approvals" onclick="switchTo(\'approvals\')">Account Approvals</a>, review the request and click <b>Approve</b> or <b>Reject</b>.' },
+      { q:'Where do I manage borrow requests from users?', a:'Go to <a href="#requests" onclick="switchTo(\'requests\')">Borrow Requests</a> and use <b>Approve</b>/<b>Deny</b>.' },
+      { q:'How do I process a return?', a:'Open <a href="#returns" onclick="switchTo(\'returns\')">Returns</a> and click <b>Mark Returned</b>.' },
+      { q:'How do I extend a loan for a user?', a:'Navigate to <a href="#extensions" onclick="switchTo(\'extensions\')">Extensions</a> and click <b>Extend</b> to add 10 days.' },
+      { q:'How can I check inventory health?', a:'See <a href="#catalogue" onclick="switchTo(\'catalogue\')">Catalogue</a>. Titles with <b>Low</b> or <b>Out of stock</b> tags may need restocking.' },
+      { q:'Where do I review fines and payments?', a:'Visit <a href="#fines" onclick="switchTo(\'fines\')">Fines</a> for outstanding fines and payment history.' },
+      { q:'How do I activate/deactivate a user?', a:'Open <a href="#accounts" onclick="switchTo(\'accounts\')">Accounts</a> and use the <b>Activate/Deactivate</b> button.' },
+      { q:'How do I add stock quickly?', a:'Use the <b>Add New Book</b> form under Catalogue. Adding the book records an order which appears in <b>Order History</b>. You can also click <b>Add</b> on successful orders to push them into the catalogue automatically.' }
+    ];
+    faqBody.innerHTML = faqs.map(f=>(
+      `<div class="faq-item"><h4>${f.q}</h4><div>${f.a}</div></div>`
+    )).join('');
+    helpModal.classList.add('show');
+  });
+  document.getElementById('helpClose').addEventListener('click', ()=> helpModal.classList.remove('show'));
+  helpModal.addEventListener('click', (e)=>{ if(e.target.id==='helpModal') helpModal.classList.remove('show'); });
+
+  // ===== Initial renders =====
+  function computeAndRenderAll(){
+    computeTiles(); refreshActivity();
+    renderCatalogueEditable(CATALOGUE);
+    renderRequests();
+    renderExtensions();
+    renderReturns();
+    renderHistory();
+    renderAccounts(USERS);
+    renderApprovals();
+    renderOrders(); // initial orders render
+  }
+  computeAndRenderAll();
+
+  // Deep link
+  if(location.hash){
+    const key = location.hash.slice(1);
+    if(views[key]) switchTo(key);
+  }
+  window.addEventListener('hashchange', ()=>{
+    const key = location.hash.slice(1);
+    if(views[key]) switchTo(key);
+  });
+
+  // Wire up catalogue controls
+  document.getElementById('applyUpdate').addEventListener('click', ()=>applyCatalogueUpdate());
+  document.getElementById('resetAvail').addEventListener('click', ()=>resetCatalogueInputs());
+  document.getElementById('catClear').addEventListener('click', ()=>{
+    document.getElementById('catSearch').value = '';
+    document.getElementById('catMinAvail').value = '';
+    renderCatalogueEditable(CATALOGUE);
+  });
+  document.getElementById('catSearch').addEventListener('input', ()=>renderCatalogueEditable(filteredCatalogueRows()));
+  document.getElementById('catMinAvail').addEventListener('input', ()=>renderCatalogueEditable(filteredCatalogueRows()));
+
+  // Add book form
+  document.getElementById('addBook').addEventListener('click', ()=>addNewBook());
+  document.getElementById('clearAdd').addEventListener('click', ()=>{
+    document.getElementById('newTitle').value=''; document.getElementById('newAuthor').value=''; document.getElementById('newCopies').value='';
+  });
+</script>
+</body>
+</html>

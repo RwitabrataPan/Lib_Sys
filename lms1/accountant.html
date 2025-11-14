@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Library Management System — Accountant</title>
+
+<!-- jsPDF for generating PDF invoices -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+  :root{
+    --ink:#0f172a; --muted:#475569;
+    --g1:#0ea5e9; --g2:#10b981; --g3:#a78bfa;
+    --card:#ffffff;
+    --ring:rgba(16,185,129,.20);
+    --radius:14px;
+    --fast:220ms cubic-bezier(.2,.8,.2,1);
+    --slow:700ms cubic-bezier(.16,.84,.25,1);
+    --shadow:0 16px 40px rgba(2,132,199,.12);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+    background:
+      radial-gradient(900px 600px at 85% -10%, rgba(186,230,253,.45), transparent 40%),
+      radial-gradient(900px 600px at -10% 110%, rgba(167,243,208,.45), transparent 40%),
+      linear-gradient(180deg,#f8fffb 0%,#f0fbff 100%);
+  }
+
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(15,23,42,.9));
+    color:#fff; box-shadow:0 2px 10px rgba(0,0,0,.08);
+  }
+  .topbar{
+    max-width:1200px; margin:0 auto; padding:18px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{
+    font-weight:900; font-size:1.5rem; letter-spacing:.2px;
+    background:linear-gradient(90deg,#fff 0%, #e2f7ff 35%, #d1ffe9 70%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .nav{ display:flex; gap:24px; align-items:center; }
+  /* HELP BUTTON FONT/SIZE FIX: make buttons and links identical */
+  .nav a, .nav button{
+    appearance:none; background:none; border:0; cursor:pointer;
+    font:inherit; font-weight:900; font-size:1rem; line-height:1.2;
+    color:#e5e7eb; text-decoration:none;
+    padding:6px 8px; border-radius:8px;
+    transition:transform var(--fast), background var(--fast);
+  }
+  .nav a:hover, .nav button:hover{ background:rgba(255,255,255,.08); transform:translateY(-2px); }
+
+  .wrap{
+    max-width:1200px; margin:22px auto; padding:0 16px;
+    display:grid; grid-template-columns:260px 1fr; gap:22px;
+  }
+
+  .sidebar{
+    background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid rgba(2,132,199,.12);
+    box-shadow:var(--shadow);
+    padding:16px;
+    height:fit-content;
+  }
+  .sidebar h3{ margin:6px 0 14px; }
+  .menu{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .menu a{
+    display:block; text-decoration:none; color:var(--ink);
+    padding:10px 12px; border-radius:10px;
+    border:1px solid transparent;
+    transition:all var(--fast);
+    font-weight:700;
+  }
+  .menu a:hover{ transform:translateX(6px); background:rgba(14,165,233,.06); }
+  .menu a.active{ background:linear-gradient(90deg, rgba(16,185,129,.12), rgba(14,165,233,.10)); border-color:rgba(16,185,129,.35); }
+
+  .content{ min-height:480px; }
+  .view{
+    background:var(--card);
+    border:1px solid rgba(2,132,199,.12);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    opacity:0; transform: translateY(10px) scale(.995);
+    transition: opacity var(--slow), transform var(--slow);
+    display:none;
+  }
+  .view.active{ display:block; opacity:1; transform:none; }
+
+  .card{
+    background:#fff; border:1px solid rgba(2,132,199,.1);
+    border-radius:12px; padding:14px; box-shadow:0 10px 26px rgba(2,132,199,.08);
+  }
+  .stack{ display:grid; gap:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .btn{
+    appearance:none; border:0; border-radius:10px; height:40px;
+    padding:0 14px; font-weight:800; cursor:pointer;
+    background:linear-gradient(90deg,var(--g2),var(--g1)); color:#fff;
+    box-shadow:0 10px 24px rgba(14,165,233,.20);
+    transition:transform var(--fast), filter var(--fast);
+  }
+  .btn:hover{ transform:translateY(-2px); filter:brightness(1.03); }
+  .btn.secondary{ background:linear-gradient(90deg,#94a3b8,#64748b); }
+
+  table{ width:100%; border-collapse:separate; border-spacing:0 10px; }
+  th, td{ padding:12px 14px; text-align:left; vertical-align:middle; }
+  tbody tr{
+    background:#fff; border:1px solid rgba(2,132,199,.12);
+    border-radius:12px; box-shadow:0 6px 18px rgba(2,132,199,.08);
+  }
+  td:first-child, th:first-child{ border-top-left-radius:12px; border-bottom-left-radius:12px; }
+  td:last-child, th:last-child{ border-top-right-radius:12px; border-bottom-right-radius:12px; }
+
+  .tag{
+    padding:6px 10px; border-radius:999px; font-weight:800; font-size:.78rem;
+    background:rgba(16,185,129,.15); color:#065f46; border:1px solid rgba(16,185,129,.3);
+  }
+  .tag.warn{ background:rgba(234,179,8,.18); color:#78350f; border-color:rgba(234,179,8,.35); }
+  .tag.danger{ background:rgba(239,68,68,.18); color:#991b1b; border-color:rgba(239,68,68,.35); }
+  .tag.success{ background:rgba(34,197,94,.18); color:#14532d; border-color:rgba(34,197,94,.35); }
+  .muted{ color:var(--muted); }
+
+  .tiles{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+  .tile{
+    border-radius:14px; padding:14px; color:#0b1324; font-weight:800;
+    background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(240,252,255,.9));
+    border:1px solid rgba(2,132,199,.14);
+    box-shadow:0 14px 30px rgba(14,165,233,.12);
+    display:flex; align-items:center; gap:12px;
+    transition: transform var(--fast), box-shadow var(--fast);
+  }
+  .tile:hover{ transform: translateY(-3px); box-shadow:0 18px 40px rgba(14,165,233,.22); }
+  .tile .icon{
+    width:44px; height:44px; display:grid; place-items:center; border-radius:12px; font-size:22px;
+    background:linear-gradient(135deg, rgba(14,165,233,.2), rgba(16,185,129,.2));
+  }
+  .tile .meta{ display:flex; flex-direction:column; line-height:1.15; }
+  .tile .meta .k{ font-size:1.1rem; }
+  .tile .meta .s{ font-size:.8rem; color:#475569; font-weight:700; }
+
+  .filters{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .input{
+    height:42px; border-radius:10px; border:1px solid rgba(2,132,199,.2);
+    padding:0 12px; outline:none; font-size:1rem;
+  }
+  .input:focus{ border-color:var(--g1); box-shadow:0 0 0 6px var(--ring); }
+  .select{ height:42px; border-radius:10px; border:1px solid rgba(2,132,199,.2); padding:0 12px; background:#fff; }
+  .select:focus{ outline:none; border-color:var(--g1); box-shadow:0 0 0 6px var(--ring); }
+
+  @media (max-width: 1020px){ .tiles{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 560px){ .tiles{ grid-template-columns: 1fr; } }
+  @media (max-width: 960px){ .wrap{ grid-template-columns:1fr; } }
+
+  /* ===== Help Modal (centered, matches your screenshots) ===== */
+  .help-backdrop{
+    position:fixed; inset:0; background:rgba(2,6,23,.58);
+    display:none; align-items:center; justify-content:center; z-index:60;
+    backdrop-filter:saturate(115%) blur(2px);
+  }
+  .help-backdrop.show{ display:flex; }
+  .help-modal{
+    width:min(880px, calc(100% - 32px));
+    max-height:82vh; overflow:auto;
+    background:#ffffff; border-radius:18px; box-shadow:0 30px 70px rgba(2,132,199,.25);
+    border:1px solid rgba(2,132,199,.18);
+    animation:pop var(--fast);
+  }
+  @keyframes pop{ from{ transform:translateY(10px) scale(.98); opacity:0 } to{ transform:none; opacity:1 } }
+  .help-head{
+    position:sticky; top:0; z-index:1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px; background:linear-gradient(180deg,#f6fbff,#ffffff);
+    border-bottom:1px solid rgba(2,132,199,.12);
+    border-top-left-radius:18px; border-top-right-radius:18px;
+  }
+  .help-title{ font-weight:900; font-size:1.1rem; }
+  .help-close{
+    background:#eaf5ff; border:0; color:#0b1324; font-weight:900; cursor:pointer;
+    padding:10px 14px; border-radius:14px; box-shadow:0 10px 26px rgba(2,132,199,.25);
+  }
+  .help-body{ padding:14px; display:grid; gap:10px; }
+  .faq-item{
+    border:1px solid rgba(2,132,199,.14);
+    border-radius:14px; background:#fff;
+    padding:12px 14px;
+  }
+  .faq-q{ margin:0 0 4px; font-weight:900; }
+  .faq-a{ margin:0; color:#0b1324; }
+  .faq-a .muted{ color:var(--muted); }
+  .faq-a a{ color:#0369a1; font-weight:800; text-decoration:none; }
+  .faq-a a:hover{ text-decoration:underline; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">Scholars’ Archive</div>
+      <nav class="nav">
+        <!-- Order: Help · About · Contact · Logout | Home removed -->
+        <button id="nav-help">Help</button>
+        <a href="#" id="nav-about">About</a>
+        <a href="#" id="nav-contact">Contact</a>
+        <a href="index.html" id="nav-logout">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <aside class="sidebar">
+      <h3>Accountant Menu</h3>
+      <ul class="menu" id="menu">
+        <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
+        <li><a href="#" data-view="loans">Ongoing Loans</a></li>
+        <li><a href="#" data-view="issue">Issue Fine</a></li>
+        <li><a href="#" data-view="invoice">Issue Invoice</a></li>
+        <li><a href="#" data-view="payments">Fine Payment History</a></li>
+        <li><a href="#" data-view="orders">Book Order Payments</a></li>
+      </ul>
+    </aside>
+
+    <section class="content">
+      <!-- Dashboard -->
+      <div class="view active" id="view-dashboard">
+        <h2 style="margin:6px 0 12px;">Accountant Dashboard</h2>
+        <div class="tiles">
+          <div class="tile"><div class="icon">✅</div><div class="meta"><div class="k" id="tPaidToday">₹0</div><div class="s">Payments Today</div></div></div>
+          <div class="tile"><div class="icon">💰</div><div class="meta"><div class="k" id="tCollected">₹0</div><div class="s">Total Collected</div></div></div>
+          <div class="tile"><div class="icon">🔁</div><div class="meta"><div class="k" id="tLoans">0</div><div class="s">Active Loans</div></div></div>
+          <div class="tile"><div class="icon">🚩</div><div class="meta"><div class="k" id="tOpenFines">0</div><div class="s">Open Fines</div></div></div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Alerts</h3>
+            <ul class="muted" style="margin:0 0 8px 18px;">
+              <li><strong id="alertOverdue">0</strong> loans are overdue.</li>
+              <li><strong id="alertHighFine">0</strong> users with fines over ₹200.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Recent Activity</h3>
+            <ul class="muted" id="activityFeed" style="margin:0 0 0 18px;"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ongoing Loans -->
+      <div class="view" id="view-loans">
+        <h2 style="margin:6px 0 12px;">Ongoing Loans</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Title</th><th>User</th><th>Due Date</th><th>Status</th></tr></thead>
+            <tbody id="loansBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Issue Fine -->
+      <div class="view" id="view-issue">
+        <h2 style="margin:6px 0 12px;">Issue Fine</h2>
+        <div class="card">
+          <div class="filters">
+            <input id="issueSearch" class="input" placeholder="Search student…" />
+            <select id="issueSort" class="select">
+              <option value="amount_desc">Sort: Amount ↓</option>
+              <option value="amount_asc">Sort: Amount ↑</option>
+              <option value="name_asc">Sort: Name A→Z</option>
+              <option value="name_desc">Sort: Name Z→A</option>
+              <option value="count_desc">Sort: Fine count ↓</option>
+              <option value="count_asc">Sort: Fine count ↑</option>
+            </select>
+          </div>
+          <table>
+            <thead><tr><th>User</th><th>Outstanding</th><th>Adjust / New Fine (₹)</th><th>Action</th></tr></thead>
+            <tbody id="issueBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Issue Invoice (fine payments not yet invoiced) -->
+      <div class="view" id="view-invoice">
+        <h2 style="margin:6px 0 12px;">Issue Invoice</h2>
+        <div class="card">
+          <div class="filters">
+            <input id="invSearch" class="input" placeholder="Search by student…" />
+            <select id="invSort" class="select">
+              <option value="date_desc">Sort: Date ↓</option>
+              <option value="date_asc">Sort: Date ↑</option>
+              <option value="amount_desc">Sort: Amount ↓</option>
+              <option value="amount_asc">Sort: Amount ↑</option>
+              <option value="name_asc">Sort: Name A→Z</option>
+              <option value="name_desc">Sort: Name Z→A</option>
+            </select>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>User</th><th>Method</th><th>Txn ID</th><th>Amount</th><th>Invoice</th><th>Action</th></tr></thead>
+            <tbody id="invoiceBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Fine Payment History (all successful fine payments) -->
+      <div class="view" id="view-payments">
+        <h2 style="margin:6px 0 12px;">Fine Payment History</h2>
+        <div class="card">
+          <div class="filters">
+            <input id="paySearch" class="input" placeholder="Search by student…" />
+            <select id="paySort" class="select">
+              <option value="date_desc">Sort: Date ↓</option>
+              <option value="date_asc">Sort: Date ↑</option>
+              <option value="amount_desc">Sort: Amount ↓</option>
+              <option value="amount_asc">Sort: Amount ↑</option>
+              <option value="name_asc">Sort: Name A→Z</option>
+              <option value="name_desc">Sort: Name Z→A</option>
+            </select>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>User</th><th>Method</th><th>Txn ID</th><th>Amount</th><th>Status</th><th>Invoice</th></tr></thead>
+            <tbody id="paymentsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Book Order Payments (pending only) -->
+      <div class="view" id="view-orders">
+        <h2 style="margin:6px 0 12px;">Book Order Payments</h2>
+        <div class="card">
+          <div class="filters">
+            <input id="ordSearch" class="input" placeholder="Search by title or supplier…" />
+            <select id="ordSort" class="select">
+              <option value="date_desc">Sort: Ordered Date ↓</option>
+              <option value="date_asc">Sort: Ordered Date ↑</option>
+              <option value="amount_desc">Sort: Cost ↓</option>
+              <option value="amount_asc">Sort: Cost ↑</option>
+              <option value="supplier_asc">Sort: Supplier A→Z</option>
+              <option value="supplier_desc">Sort: Supplier Z→A</option>
+            </select>
+          </div>
+          <table>
+            <thead><tr><th>Book Title</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Ordered</th><th>Status</th><th>Method</th><th>Action</th></tr></thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Downloadable invoices after successful payment -->
+        <div class="card" id="orderInvoicesCard" style="margin-top:14px;">
+          <h3 style="margin:0 0 8px;">Downloadable Invoices</h3>
+          <table>
+            <thead><tr><th>Invoice ID</th><th>Book Title</th><th>Supplier</th><th>Paid On</th><th>Amount</th><th>Method</th><th>Download</th></tr></thead>
+            <tbody id="orderInvoicesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Help Modal ===== -->
+  <div class="help-backdrop" id="helpBackdrop" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-modal">
+      <div class="help-head">
+        <div class="help-title" id="helpTitle">Accountant Help & FAQs</div>
+        <button class="help-close" id="helpClose">Close</button>
+      </div>
+      <div class="help-body">
+        <div class="faq-item">
+          <p class="faq-q">Where do I manage invoices for fine payments?</p>
+          <p class="faq-a">Open <a href="#invoice" class="deeplink">Issue Invoice</a> and click <em>Issue Invoice</em> for the matching transaction.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">How do I review all fine payments?</p>
+          <p class="faq-a">Go to <a href="#payments" class="deeplink">Fine Payment History</a> to see dates, methods, and invoice status.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">How do I pay a supplier for a book order?</p>
+          <p class="faq-a">Visit <a href="#orders" class="deeplink">Book Order Payments</a>, choose a method, and click <em>Pay Now</em>.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">Where can I download supplier invoices?</p>
+          <p class="faq-a">After payment, scroll to <strong>Downloadable Invoices</strong> in <a href="#orders" class="deeplink">Book Order Payments</a> and click <em>Download</em>.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">How do I issue an additional fine to a student?</p>
+          <p class="faq-a">Open <a href="#issue" class="deeplink">Issue Fine</a>, enter the amount in <em>Adjust / New Fine</em>, then click <em>Issue Fine</em>.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">Where can I see current loans and overdue items?</p>
+          <p class="faq-a">Check <a href="#loans" class="deeplink">Ongoing Loans</a>. Overdue items are marked clearly.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">What do the dashboard tiles mean?</p>
+          <p class="faq-a"><strong>Payments Today</strong> shows today’s successful payments. <strong>Total Collected</strong> totals all successful fine payments. <strong>Active Loans</strong> counts current loans; <strong>Open Fines</strong> counts outstanding fines.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">Can I edit or delete an issued invoice?</p>
+          <p class="faq-a">Not in this demo. Record an adjustment as a new entry so the audit trail remains intact.</p>
+        </div>
+
+        <div class="faq-item">
+          <p class="faq-q">A payment shows “Not issued”. What does that mean?</p>
+          <p class="faq-a">The payment succeeded but no invoice exists yet. Head to <a href="#invoice" class="deeplink">Issue Invoice</a> and create one.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ===== Demo Data =====
+  let LOANS = [
+    { title:'You Don’t Know JS', user:'Akash Roy', due:'2025-11-18' },
+    { title:'The Pragmatic Programmer', user:'Akash Roy', due:'2025-11-25' },
+    { title:'Clean Code', user:'A. Sharma', due:'2025-11-12' },
+  ];
+
+  // Open fines (pending/unpaid)
+  let OPEN_FINES = [
+    { id:'F-101', user:'Akash Roy', reason:'Overdue — “Clean Code”', amount:80, created:'2025-10-18' },
+    { id:'F-102', user:'Akash Roy', reason:'Overdue — “Design Patterns”', amount:40, created:'2025-10-22' },
+    { id:'F-103', user:'R. Dutta', reason:'Lost — “Refactoring”', amount:250, created:'2025-11-01' },
+  ];
+
+  // Successful fine payments (some may already be invoiced)
+  let PAYMENTS = [
+    { date:'2025-11-07', user:'A. Sharma', method:'UPI',  tx:'UPI-9X2K1A', amount:120, status:'Success', invoiceIssued:false },
+    { date:'2025-11-06', user:'Akash Roy', method:'Card', tx:'TXN-4D7H9',  amount:40,  status:'Success', invoiceIssued:true  },
+    { date:'2025-11-05', user:'R. Dutta', method:'UPI',  tx:'UPI-1AB2C3', amount:250, status:'Success', invoiceIssued:false },
+  ];
+
+  // Pending book orders (from Stock Manager) — unpaid
+  let BOOK_ORDERS_PENDING = [
+    { id:'PO-2201', title:'Clean Architecture', supplier:'TechBooks Ltd.', qty:10, cost:8500, ordered:'2025-11-02', status:'Unpaid' },
+    { id:'PO-2202', title:'Database Internals', supplier:'DataPress', qty:6, cost:5400, ordered:'2025-11-04', status:'Unpaid' },
+    { id:'PO-2203', title:'Grokking Algorithms', supplier:'AlgoHouse', qty:12, cost:7200, ordered:'2025-11-06', status:'Unpaid' },
+  ];
+
+  // Paid book orders (for invoice downloads)
+  let BOOK_ORDERS_PAID = [];
+
+  let ACTIVITY = [
+    'Payment received — TXN-4D7H9 (₹40) for Akash Roy',
+    'Open fine created — ₹250 to R. Dutta (Lost — “Refactoring”)',
+  ];
+
+  // ===== Router =====
+  const views = {
+    dashboard: document.getElementById('view-dashboard'),
+    loans: document.getElementById('view-loans'),
+    issue: document.getElementById('view-issue'),
+    invoice: document.getElementById('view-invoice'),
+    payments: document.getElementById('view-payments'),
+    orders: document.getElementById('view-orders'),
+  };
+
+  const menu = document.getElementById('menu');
+  menu.addEventListener('click', (e)=>{
+    const a = e.target.closest('a[data-view]');
+    if(!a) return;
+    e.preventDefault();
+    switchTo(a.dataset.view);
+  });
+
+  function switchTo(key){
+    menu.querySelectorAll('a').forEach(x=>x.classList.toggle('active', x.dataset.view===key));
+    Object.entries(views).forEach(([k,el])=>{
+      if(k===key){ el.classList.add('active'); } else { el.classList.remove('active'); }
+    });
+    const first = views[key].querySelector('button, a, input, select, textarea');
+    if(first) first.focus({preventScroll:true});
+    if (key === 'issue') renderIssue();
+    if (key === 'invoice') renderInvoice();
+    if (key === 'orders') { renderOrders(); renderOrderInvoices(); }
+    if (key === 'payments') renderPayments();
+  }
+
+  // Handle hash deep links from Help (e.g., #orders)
+  function applyHash(){
+    const key = location.hash.slice(1);
+    if (views[key]) {
+      switchTo(key);
+      hideHelp();
+      setTimeout(()=>{ views[key].scrollIntoView({behavior:'smooth', block:'start'}); }, 80);
+    }
+  }
+  window.addEventListener('hashchange', applyHash);
+
+  // ===== Utils =====
+  const fmtINR = n => '₹' + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+  const fmtINR_PDF = n => 'INR ' + new Intl.NumberFormat('en-IN').format(Number(n||0)); // PDF-safe
+  const escapeHtml = s => String(s).replace(/[&<>"'`=\/]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'}[m]));
+  const today = () => new Date().toISOString().slice(0,10);
+  const randId = p => p + '-' + Math.random().toString(36).slice(2,8).toUpperCase();
+
+  // ===== Dashboard numbers =====
+  function computeTiles(){
+    const paidToday = PAYMENTS.filter(p=>p.status==='Success' && p.date===today()).reduce((a,b)=>a+b.amount,0);
+    const totalCollected = PAYMENTS.filter(p=>p.status==='Success').reduce((a,b)=>a+b.amount,0);
+    document.getElementById('tPaidToday').textContent = fmtINR(paidToday);
+    document.getElementById('tCollected').textContent = fmtINR(totalCollected);
+    document.getElementById('tLoans').textContent = LOANS.length;
+    document.getElementById('tOpenFines').textContent = OPEN_FINES.length;
+
+    const overdueCount = LOANS.filter(l => new Date(l.due) < new Date()).length;
+    document.getElementById('alertOverdue').textContent = overdueCount;
+
+    const totals = groupOutstandingByUser();
+    const highFineUsers = Object.values(totals).filter(v => v.total > 200).length;
+    document.getElementById('alertHighFine').textContent = highFineUsers;
+  }
+  function refreshActivity(){
+    document.getElementById('activityFeed').innerHTML =
+      ACTIVITY.slice(0,8).map(a=>`<li>${escapeHtml(a)}</li>`).join('');
+  }
+
+  // ===== Loans =====
+  const loansBody = document.getElementById('loansBody');
+  function renderLoans(){
+    loansBody.innerHTML = LOANS.map(l=>{
+      const overdue = new Date(l.due) < new Date();
+      return `
+        <tr>
+          <td>${escapeHtml(l.title)}</td>
+          <td>${escapeHtml(l.user)}</td>
+          <td>${l.due}</td>
+          <td>${overdue ? '<span class="tag danger">Overdue</span>' : '<span class="tag">On loan</span>'}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ===== Outstanding helpers (for Issue Fine) =====
+  function groupOutstandingByUser(){
+    const out = {};
+    OPEN_FINES.forEach(f=>{
+      out[f.user] = out[f.user] || { total:0, count:0 };
+      out[f.user].total += Number(f.amount||0);
+      out[f.user].count += 1;
+    });
+    return out;
+  }
+  function usersWithOutstandingArr(){
+    const m = groupOutstandingByUser();
+    return Object.entries(m).map(([user,meta])=>({user, ...meta}));
+  }
+
+  // ===== Issue Fine (single list) =====
+  const issueSearch = document.getElementById('issueSearch');
+  const issueSort   = document.getElementById('issueSort');
+  const issueBody   = document.getElementById('issueBody');
+
+  function renderIssue(){
+    const q = (issueSearch.value||'').trim().toLowerCase();
+    let rows = usersWithOutstandingArr().filter(x => x.user.toLowerCase().includes(q));
+
+    const sortKey = issueSort.value || 'amount_desc';
+    rows.sort((a,b)=>{
+      switch(sortKey){
+        case 'amount_asc': return a.total - b.total;
+        case 'amount_desc': return b.total - a.total;
+        case 'name_asc': return a.user.localeCompare(b.user);
+        case 'name_desc': return b.user.localeCompare(a.user);
+        case 'count_asc': return a.count - b.count;
+        case 'count_desc': return b.count - a.count;
+        default: return b.total - a.total;
+      }
+    });
+
+    issueBody.innerHTML = rows.map(r => `
+      <tr data-user="${escapeHtml(r.user)}">
+        <td>${escapeHtml(r.user)}</td>
+        <td><span class="tag warn">${fmtINR(r.total)}</span> <span class="muted">(${r.count} fine${r.count>1?'s':''})</span></td>
+        <td>
+          <input type="number" min="0" step="1" class="input" style="max-width:140px;" value="${r.total}" data-amount="${escapeHtml(r.user)}" />
+        </td>
+        <td>
+          <button class="btn" style="height:34px;padding:0 10px;" data-issue="${escapeHtml(r.user)}">Issue Fine</button>
+        </td>
+      </tr>
+    `).join('');
+
+    issueBody.querySelectorAll('button[data-issue]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const user = btn.dataset.issue;
+        const amountEl = issueBody.querySelector(`input[data-amount="${CSS.escape(user)}"]`);
+        const amount = Number(amountEl && amountEl.value ? amountEl.value : 0);
+        if(amount<=0) return;
+        OPEN_FINES.push({ id: randId('F'), user, reason:'Additional fine', amount, created: today() });
+        ACTIVITY.unshift(`Fine created — ${fmtINR(amount)} to ${user} (Additional fine)`);
+        computeTiles();
+        refreshActivity();
+        renderIssue();
+      });
+    });
+  }
+
+  if (issueSearch) issueSearch.addEventListener('input', renderIssue);
+  if (issueSort)   issueSort.addEventListener('change', renderIssue);
+
+  // ===== Issue Invoice (fine payments not yet invoiced) =====
+  const invSearch = document.getElementById('invSearch');
+  const invSort   = document.getElementById('invSort');
+  const invoiceBody = document.getElementById('invoiceBody');
+
+  function renderInvoice(){
+    const onlyUninvoiced = PAYMENTS.filter(p => p.status==='Success' && !p.invoiceIssued);
+    const q = (invSearch.value||'').trim().toLowerCase();
+    let rows = onlyUninvoiced.filter(p => p.user.toLowerCase().includes(q));
+
+    const sortKey = invSort.value || 'date_desc';
+    rows.sort((a,b)=>{
+      switch(sortKey){
+        case 'date_asc': return new Date(a.date) - new Date(b.date);
+        case 'date_desc': return new Date(b.date) - new Date(a.date);
+        case 'amount_asc': return a.amount - b.amount;
+        case 'amount_desc': return b.amount - a.amount;
+        case 'name_asc': return a.user.localeCompare(b.user);
+        case 'name_desc': return b.user.localeCompare(a.user);
+        default: return new Date(b.date) - new Date(a.date);
+      }
+    });
+
+    invoiceBody.innerHTML = rows.map((p) => `
+      <tr data-tx="${p.tx}">
+        <td>${p.date}</td>
+        <td>${escapeHtml(p.user)}</td>
+        <td>${p.method}</td>
+        <td>${p.tx}</td>
+        <td>${fmtINR(p.amount)}</td>
+        <td><span class="tag danger">Not issued</span></td>
+        <td><button class="btn" style="height:34px;padding:0 10px;" data-invoice="${p.tx}">Issue Invoice</button></td>
+      </tr>
+    `).join('');
+
+    invoiceBody.querySelectorAll('button[data-invoice]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const tx = btn.dataset.invoice;
+        const p = PAYMENTS.find(x => x.tx===tx);
+        if(!p) return;
+        p.invoiceIssued = true;
+        ACTIVITY.unshift(`Invoice issued — ${p.tx} (${fmtINR(p.amount)}) to ${p.user}`);
+        renderInvoice();
+        renderPayments();
+        refreshActivity();
+      });
+    });
+  }
+
+  if (invSearch) invSearch.addEventListener('input', renderInvoice);
+  if (invSort)   invSort.addEventListener('change', renderInvoice);
+
+  // ===== Fine Payment History (all successful fine payments) =====
+  const paySearch = document.getElementById('paySearch');
+  const paySort   = document.getElementById('paySort');
+  const paymentsBody = document.getElementById('paymentsBody');
+
+  function renderPayments(){
+    const onlySuccess = PAYMENTS.filter(p => p.status==='Success');
+    const q = (paySearch.value||'').trim().toLowerCase();
+    let rows = onlySuccess.filter(p => p.user.toLowerCase().includes(q));
+
+    const sortKey = paySort.value || 'date_desc';
+    rows.sort((a,b)=>{
+      switch(sortKey){
+        case 'date_asc': return new Date(a.date) - new Date(b.date);
+        case 'date_desc': return new Date(b.date) - new Date(a.date);
+        case 'amount_asc': return a.amount - b.amount;
+        case 'amount_desc': return b.amount - a.amount;
+        case 'name_asc': return a.user.localeCompare(b.user);
+        case 'name_desc': return b.user.localeCompare(a.user);
+        default: return new Date(b.date) - new Date(a.date);
+      }
+    });
+
+    paymentsBody.innerHTML = rows.map(p=>`
+      <tr>
+        <td>${p.date}</td>
+        <td>${escapeHtml(p.user)}</td>
+        <td>${p.method}</td>
+        <td>${p.tx}</td>
+        <td>${fmtINR(p.amount)}</td>
+        <td><span class="tag success">${p.status}</span></td>
+        <td>${p.invoiceIssued ? '<span class="tag success">Issued</span>' : '<span class="tag danger">Not issued</span>'}</td>
+      </tr>
+    `).join('');
+  }
+
+  if (paySearch) paySearch.addEventListener('input', renderPayments);
+  if (paySort)   paySort.addEventListener('change', renderPayments);
+
+  // ===== Book Order Payments (pending only) =====
+  const ordSearch = document.getElementById('ordSearch');
+  const ordSort   = document.getElementById('ordSort');
+  const ordersBody = document.getElementById('ordersBody');
+  const orderInvoicesBody = document.getElementById('orderInvoicesBody');
+
+  function renderOrders(){
+    const q = (ordSearch.value||'').trim().toLowerCase();
+    let rows = BOOK_ORDERS_PENDING.filter(o =>
+      o.title.toLowerCase().includes(q) || o.supplier.toLowerCase().includes(q)
+    );
+
+    const sortKey = ordSort.value || 'date_desc';
+    rows.sort((a,b)=>{
+      switch(sortKey){
+        case 'date_asc': return new Date(a.ordered) - new Date(b.ordered);
+        case 'date_desc': return new Date(b.ordered) - new Date(a.ordered);
+        case 'amount_asc': return a.cost - b.cost;
+        case 'amount_desc': return b.cost - a.cost;
+        case 'supplier_asc': return a.supplier.localeCompare(b.supplier);
+        case 'supplier_desc': return b.supplier.localeCompare(a.supplier);
+        default: return new Date(b.ordered) - new Date(a.ordered);
+      }
+    });
+
+    ordersBody.innerHTML = rows.map(o=>`
+      <tr data-id="${o.id}">
+        <td>${escapeHtml(o.title)}</td>
+        <td>${escapeHtml(o.supplier)}</td>
+        <td>${o.qty}</td>
+        <td>${fmtINR(o.cost)}</td>
+        <td>${o.ordered}</td>
+        <td><span class="tag danger">${o.status}</span></td>
+        <td>
+          <select class="select" data-method="${o.id}" style="height:34px;">
+            <option>UPI</option>
+            <option>Card</option>
+            <option>Bank Transfer</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn" style="height:34px;padding:0 10px;" data-pay="${o.id}">Pay Now</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Attach pay handlers
+    ordersBody.querySelectorAll('button[data-pay]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.pay;
+        const order = BOOK_ORDERS_PENDING.find(x=>x.id===id);
+        if(!order) return;
+        const methodEl = ordersBody.querySelector(`select[data-method="${CSS.escape(id)}"]`);
+        const method = methodEl ? methodEl.value : 'UPI';
+
+        // Generate PDF invoice & mark as paid
+        const inv = createOrderInvoicePDF(order, method);
+        BOOK_ORDERS_PAID.unshift(inv);
+        // remove from pending
+        BOOK_ORDERS_PENDING = BOOK_ORDERS_PENDING.filter(x=>x.id!==id);
+        ACTIVITY.unshift(`Order paid — ${order.id} (${fmtINR(order.cost)}) via ${method} | Invoice ${inv.id}`);
+
+        renderOrders();
+        renderOrderInvoices();
+        refreshActivity();
+      });
+    });
+  }
+
+  function renderOrderInvoices(){
+    orderInvoicesBody.innerHTML = BOOK_ORDERS_PAID.map(p => `
+      <tr>
+        <td>${p.id}</td>
+        <td>${escapeHtml(p.title)}</td>
+        <td>${escapeHtml(p.supplier)}</td>
+        <td>${p.paidOn}</td>
+        <td>${fmtINR(p.cost)}</td>
+        <td>${p.method}</td>
+        <td><a class="btn" style="display:inline-block;height:34px;line-height:34px;padding:0 12px;text-decoration:none;" href="${p.invoiceUrl}" download="${p.id}.pdf">Download</a></td>
+      </tr>
+    `).join('');
+  }
+
+  // ===== Create a PDF invoice for an order (jsPDF) =====
+  function createOrderInvoicePDF(order, method){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+    const invId = randId('INV');
+    const paidOn = today();
+
+    // Header
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(18);
+    doc.text('Library Management System', 40, 50);
+    doc.setFontSize(12);
+    doc.setFont('helvetica','normal');
+    doc.text('Book Order Invoice', 40, 70);
+
+    // Invoice meta
+    let y = 110;
+    doc.setFont('helvetica','bold'); doc.text('Invoice ID:', 40, y); doc.setFont('helvetica','normal'); doc.text(invId, 140, y); y+=20;
+    doc.setFont('helvetica','bold'); doc.text('Order ID:', 40, y);  doc.setFont('helvetica','normal'); doc.text(order.id, 140, y); y+=20;
+    doc.setFont('helvetica','bold'); doc.text('Paid On:', 40, y);   doc.setFont('helvetica','normal'); doc.text(paidOn, 140, y); y+=30;
+
+    // Table-like details (Amount uses PDF-safe INR)
+    const rows = [
+      ['Book Title', order.title],
+      ['Supplier', order.supplier],
+      ['Quantity', String(order.qty)],
+      ['Ordered Date', order.ordered],
+      ['Payment Method', method],
+      ['Amount', fmtINR_PDF(order.cost)]
+    ];
+    rows.forEach(([k,v])=>{
+      doc.setFont('helvetica','bold'); doc.text(k+':', 40, y);
+      doc.setFont('helvetica','normal'); doc.text(String(v), 180, y, { maxWidth: 360 });
+      y += 22;
+    });
+
+    // Footer note
+    y += 20;
+    doc.setDrawColor(200, 230, 255);
+    doc.line(40, y, 555, y);
+    y += 22;
+    doc.setFont('helvetica','normal');
+    doc.setTextColor(90);
+    doc.text('Thank you. This is a system-generated invoice.', 40, y);
+
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+
+    return {
+      id: invId,
+      orderId: order.id,
+      title: order.title,
+      supplier: order.supplier,
+      qty: order.qty,
+      cost: order.cost,
+      ordered: order.ordered,
+      paidOn,
+      method,
+      invoiceUrl: url
+    };
+  }
+
+  // ===== Help modal logic =====
+  const helpBtn = document.getElementById('nav-help');
+  const helpBackdrop = document.getElementById('helpBackdrop');
+  const helpClose = document.getElementById('helpClose');
+
+  function showHelp(){ helpBackdrop.classList.add('show'); }
+  function hideHelp(){ helpBackdrop.classList.remove('show'); }
+
+  helpBtn?.addEventListener('click', (e)=>{ e.preventDefault(); showHelp(); });
+  helpClose?.addEventListener('click', hideHelp);
+  helpBackdrop?.addEventListener('click', (e)=>{ if(e.target===helpBackdrop) hideHelp(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && helpBackdrop.classList.contains('show')) hideHelp(); });
+
+  // Close modal and navigate when FAQ links are used
+  function handleDeepLink(){
+    const key = location.hash.slice(1);
+    if (views[key]) {
+      switchTo(key); hideHelp();
+      setTimeout(()=>{ views[key].scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
+    }
+  }
+  document.addEventListener('click', (e)=>{
+    const a = e.target.closest('a.deeplink');
+    if(!a) return;
+    hideHelp();
+  });
+  window.addEventListener('hashchange', handleDeepLink);
+
+  // ===== Boot =====
+  function computeTilesAndRenderAll(){
+    computeTiles();
+    refreshActivity();
+    renderLoans();
+    renderIssue();
+    renderInvoice();
+    renderPayments();
+    renderOrders();
+    renderOrderInvoices();
+  }
+  computeTilesAndRenderAll();
+  if (location.hash){ handleDeepLink(); }
+</script>
+</body>
+</html>

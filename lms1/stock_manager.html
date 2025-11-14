@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Library Management System — Stock Manager</title>
+
+<style>
+  :root{
+    --ink:#0f172a; --muted:#475569;
+    --g1:#0ea5e9; --g2:#10b981; --g3:#a78bfa;
+    --card:#ffffff;
+    --ring:rgba(16,185,129,.20);
+    --radius:14px;
+    --fast:220ms cubic-bezier(.2,.8,.2,1);
+    --slow:700ms cubic-bezier(.16,.84,.25,1);
+    --shadow:0 16px 40px rgba(2,132,199,.12);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+    background:
+      radial-gradient(900px 600px at 85% -10%, rgba(186,230,253,.45), transparent 40%),
+      radial-gradient(900px 600px at -10% 110%, rgba(167,243,208,.45), transparent 40%),
+      linear-gradient(180deg,#f8fffb 0%,#f0fbff 100%);
+  }
+
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(15,23,42,.9));
+    color:#fff; box-shadow:0 2px 10px rgba(0,0,0,.08);
+  }
+  .topbar{
+    max-width:1200px; margin:0 auto; padding:18px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{
+    font-weight:900; font-size:1.5rem; letter-spacing:.2px;
+    background:linear-gradient(90deg,#fff 0%, #e2f7ff 35%, #d1ffe9 70%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .nav{ display:flex; gap:24px; align-items:center; }
+  /* Make Help button match link size/weight exactly */
+  .nav a, .nav button{
+    appearance:none; background:none; border:0; cursor:pointer;
+    font:inherit; font-weight:900; font-size:1rem; line-height:1.2;
+    color:#e5e7eb; text-decoration:none;
+    padding:6px 8px; border-radius:8px;
+    transition:transform var(--fast), background var(--fast);
+  }
+  .nav a:hover, .nav button:hover{ background:rgba(255,255,255,.08); transform:translateY(-2px); }
+
+  .wrap{
+    max-width:1200px; margin:22px auto; padding:0 16px;
+    display:grid; grid-template-columns:260px 1fr; gap:22px;
+  }
+
+  .sidebar{
+    background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid rgba(2,132,199,.12);
+    box-shadow:var(--shadow);
+    padding:16px; height:fit-content;
+  }
+  .sidebar h3{ margin:6px 0 14px; }
+  .menu{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .menu a{
+    display:block; text-decoration:none; color:var(--ink);
+    padding:10px 12px; border-radius:10px;
+    border:1px solid transparent;
+    transition:all var(--fast);
+    font-weight:700;
+  }
+  .menu a:hover{ transform:translateX(6px); background:rgba(14,165,233,.06); }
+  .menu a.active{ background:linear-gradient(90deg, rgba(16,185,129,.12), rgba(14,165,233,.10)); border-color:rgba(16,185,129,.35); }
+
+  .content{ min-height:480px; }
+  .view{
+    background:var(--card);
+    border:1px solid rgba(2,132,199,.12);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    opacity:0; transform: translateY(10px) scale(.995);
+    transition: opacity var(--slow), transform var(--slow);
+    display:none;
+  }
+  .view.active{ display:block; opacity:1; transform:none; }
+
+  .card{
+    background:#fff; border:1px solid rgba(2,132,199,.1);
+    border-radius:12px; padding:14px; box-shadow:0 10px 26px rgba(2,132,199,.08);
+  }
+  .stack{ display:grid; gap:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .tiles{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+  .tile{
+    border-radius:14px; padding:14px; color:#0b1324; font-weight:800;
+    background:linear-gradient(135deg, rgba(255,255,255,.9), rgba(240,252,255,.9));
+    border:1px solid rgba(2,132,199,.14);
+    box-shadow:0 14px 30px rgba(14,165,233,.12);
+    display:flex; align-items:center; gap:12px;
+    transition: transform var(--fast), box-shadow var(--fast);
+  }
+  .tile:hover{ transform: translateY(-3px); box-shadow:0 18px 40px rgba(14,165,233,.22); }
+  .tile .icon{
+    width:44px; height:44px; display:grid; place-items:center; border-radius:12px; font-size:22px;
+    background:linear-gradient(135deg, rgba(14,165,233,.2), rgba(16,185,129,.2));
+  }
+  .tile .meta{ display:flex; flex-direction:column; line-height:1.15; }
+  .tile .meta .k{ font-size:1.1rem; }
+  .tile .meta .s{ font-size:.8rem; color:#475569; font-weight:700; }
+
+  .btn{
+    appearance:none; border:0; border-radius:10px; height:40px;
+    padding:0 14px; font-weight:800; cursor:pointer;
+    background:linear-gradient(90deg,var(--g2),var(--g1)); color:#fff;
+    box-shadow:0 10px 24px rgba(14,165,233,.20);
+    transition:transform var(--fast), filter var(--fast);
+  }
+  .btn:hover{ transform:translateY(-2px); filter:brightness(1.03); }
+  .btn.secondary{ background:linear-gradient(90deg,#94a3b8,#64748b); }
+  .btn.muted{ background:linear-gradient(90deg,#cbd5e1,#94a3b8); }
+
+  table{ width:100%; border-collapse:separate; border-spacing:0 10px; table-layout:fixed; }
+  th, td{ padding:12px 14px; text-align:left; vertical-align:middle; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  thead th{ color:#0f172a; font-weight:800; }
+  tbody tr{
+    background:#fff; border:1px solid rgba(2,132,199,.12);
+    border-radius:12px; box-shadow:0 6px 18px rgba(2,132,199,.08);
+  }
+  td:first-child, th:first-child{ border-top-left-radius:12px; border-bottom-left-radius:12px; }
+  td:last-child, th:last-child{ border-top-right-radius:12px; border-bottom-right-radius:12px; }
+
+  .tag{
+    padding:6px 10px; border-radius:999px; font-weight:800; font-size:.78rem;
+    background:rgba(16,185,129,.15); color:#065f46; border:1px solid rgba(16,185,129,.3);
+  }
+  .tag.warn{ background:rgba(234,179,8,.18); color:#78350f; border-color:rgba(234,179,8,.35); }
+  .tag.danger{ background:rgba(239,68,68,.18); color:#991b1b; border-color:rgba(239,68,68,.35); }
+  .tag.success{ background:rgba(34,197,94,.18); color:#14532d; border-color:rgba(34,197,94,.35); }
+  .tag.muted{ background:rgba(148,163,184,.18); color:#334155; border-color:rgba(148,163,184,.35); }
+
+  .filters{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .input, .select, .textarea{
+    height:42px; border-radius:10px; border:1px solid rgba(2,132,199,.2);
+    padding:0 12px; outline:none; font-size:1rem; width:100%;
+  }
+  .textarea{ height:120px; padding:12px; resize:vertical; line-height:1.35; }
+  .input[readonly]{ background:#f8fafc; cursor:not-allowed; }
+
+  .mini-form{
+    display:grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap:12px;
+    align-items:start;
+  }
+  .col-span-12{ grid-column: span 12; }
+  .col-span-8{ grid-column: span 8; }
+  .col-span-6{ grid-column: span 6; }
+  .col-span-4{ grid-column: span 4; }
+  .col-span-3{ grid-column: span 3; }
+  .col-span-2{ grid-column: span 2; }
+  .actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  @media (max-width: 1020px){ .tiles{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 560px){
+    .tiles{ grid-template-columns: 1fr; }
+    .mini-form{ grid-template-columns: repeat(6,1fr); }
+    .col-span-8{grid-column: span 6;}
+    .col-span-6{grid-column: span 6;}
+    .col-span-4{grid-column: span 6;}
+    .col-span-3{grid-column: span 3;}
+    .col-span-2{grid-column: span 3;}
+    .col-span-12{grid-column: span 6;}
+  }
+  @media (max-width: 960px){ .wrap{ grid-template-columns:1fr; } }
+
+  .cover{ width:44px; height:62px; border-radius:8px; display:block; box-shadow:0 6px 14px rgba(2,132,199,.18); }
+
+  /* Autocomplete dropdown */
+  .suggest{ position:relative; }
+  .suggest-list{
+    position:absolute; z-index:10; top:100%; left:0; right:0;
+    background:#fff; border:1px solid rgba(2,132,199,.25); border-radius:10px;
+    box-shadow:0 16px 40px rgba(2,132,199,.12);
+    margin-top:6px; max-height:220px; overflow:auto; display:none;
+  }
+  .suggest-list.show{ display:block; }
+  .suggest-item{
+    padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:10px;
+  }
+  .suggest-item:hover{ background:#f1f5f9; }
+  .suggest-item .title{ font-weight:800; }
+  .suggest-item .meta{ color:var(--muted); font-size:.85rem; }
+
+  /* Help Modal */
+  .help-backdrop{
+    position:fixed; inset:0; background:rgba(2,6,23,.58);
+    display:none; align-items:center; justify-content:center; z-index:60;
+    backdrop-filter:saturate(115%) blur(2px);
+  }
+  .help-backdrop.show{ display:flex; }
+  .help-modal{
+    width:min(880px, calc(100% - 32px));
+    max-height:82vh; overflow:auto;
+    background:#ffffff; border-radius:18px; box-shadow:0 30px 70px rgba(2,132,199,.25);
+    border:1px solid rgba(2,132,199,.18);
+    animation:pop var(--fast);
+  }
+  @keyframes pop{ from{ transform:translateY(10px) scale(.98); opacity:0 } to{ transform:none; opacity:1 } }
+  .help-head{
+    position:sticky; top:0; z-index:1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px; background:linear-gradient(180deg,#f6fbff,#ffffff);
+    border-bottom:1px solid rgba(2,132,199,.12);
+    border-top-left-radius:18px; border-top-right-radius:18px;
+  }
+  .help-title{ font-weight:900; font-size:1.1rem; }
+  .help-close{
+    background:#eaf5ff; border:0; color:#0b1324; font-weight:900; cursor:pointer;
+    padding:10px 14px; border-radius:14px; box-shadow:0 10px 26px rgba(2,132,199,.25);
+  }
+  .help-body{ padding:14px; display:grid; gap:10px; }
+  .faq-item{ border:1px solid rgba(2,132,199,.14); border-radius:14px; background:#fff; padding:12px 14px; }
+  .faq-q{ margin:0 0 4px; font-weight:900; }
+  .faq-a{ margin:0; color:#0b1324; }
+  .faq-a .muted{ color:var(--muted); }
+  .faq-a a{ color:#0369a1; font-weight:800; text-decoration:none; }
+  .faq-a a:hover{ text-decoration:underline; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">Scholars’ Archive</div>
+      <nav class="nav">
+        <!-- Home removed; Help added -->
+        <button id="nav-help">Help</button>
+        <a href="#" id="nav-about">About</a>
+        <a href="#" id="nav-contact">Contact</a>
+        <a href="index.html" id="nav-logout">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Stock Manager</h3>
+      <ul class="menu" id="menu">
+        <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
+        <li><a href="#" data-view="catalogue">Catalogue</a></li>
+        <li><a href="#" data-view="place">Place Order</a></li>
+        <li><a href="#" data-view="history">Order History</a></li>
+      </ul>
+    </aside>
+
+    <!-- Content -->
+    <section class="content">
+      <!-- Dashboard -->
+      <div class="view active" id="view-dashboard">
+        <h2 style="margin:6px 0 12px;">Stock Manager Dashboard</h2>
+
+        <div class="tiles">
+          <div class="tile"><div class="icon">📚</div><div class="meta"><div class="k" id="kTitles">0</div><div class="s">Titles in Catalogue</div></div></div>
+          <div class="tile"><div class="icon">🟡</div><div class="meta"><div class="k" id="kLow">0</div><div class="s">Low Stock (≤3)</div></div></div>
+          <div class="tile"><div class="icon">⛔</div><div class="meta"><div class="k" id="kOut">0</div><div class="s">Out of Stock</div></div></div>
+          <div class="tile"><div class="icon">🧾</div><div class="meta"><div class="k" id="kPendingPO">0</div><div class="s">Open Purchase Orders</div></div></div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Recent Activity</h3>
+            <ul class="muted" id="activityFeed" style="margin:0 0 0 18px;"></ul>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 8px;">Stock Alerts</h3>
+            <table>
+              <colgroup>
+                <col style="width:64px" />
+                <col />
+                <col style="width:28%" />
+                <col style="width:12%" />
+                <col style="width:16%" />
+              </colgroup>
+              <thead><tr><th>Cover</th><th>Title</th><th>Author</th><th>Avail</th><th>Status</th></tr></thead>
+              <tbody id="alertsBodyDash"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Catalogue -->
+      <div class="view" id="view-catalogue">
+        <h2 style="margin:6px 0 12px;">Catalogue</h2>
+
+        <div class="card" style="margin-bottom:12px;">
+          <div class="filters">
+            <input id="catSearch" class="input" placeholder="Search by title or author…" style="max-width:360px"/>
+            <select id="catStatus" class="select" style="max-width:220px">
+              <option value="">All statuses</option>
+              <option value="ok">OK</option>
+              <option value="low">Low</option>
+              <option value="out">Out of stock</option>
+            </select>
+            <button class="btn secondary" id="catClear">Clear</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <table>
+            <colgroup>
+              <col style="width:64px" />
+              <col />
+              <col style="width:22%" />
+              <col style="width:10%" />
+              <col style="width:10%" />
+              <col style="width:14%" />
+              <col style="width:14%" />
+            </colgroup>
+            <thead><tr><th>Cover</th><th>Title</th><th>Author</th><th>Year</th><th>Avail</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="catalogueBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Place Order (supports manual search + auto-fill) -->
+      <div class="view" id="view-place">
+        <h2 style="margin:6px 0 12px;">Place Order</h2>
+        <div class="card">
+          <div class="mini-form">
+            <div class="col-span-2" style="display:grid;place-items:center;">
+              <img id="poCover" class="cover" src="" alt="cover" />
+            </div>
+
+            <!-- Title with autocomplete -->
+            <div class="col-span-8 suggest">
+              <label class="muted" for="poTitle">Title</label>
+              <input id="poTitle" class="input" placeholder="Type to search catalogue…" autocomplete="off" />
+              <div id="titleSuggest" class="suggest-list"></div>
+            </div>
+
+            <div class="col-span-2">
+              <label class="muted" for="poPrice">Unit Price (₹)</label>
+              <input id="poPrice" class="input" readonly />
+            </div>
+
+            <div class="col-span-4">
+              <label class="muted" for="poQty">Quantity</label>
+              <input id="poQty" class="input" type="number" min="1" placeholder="e.g. 10" />
+            </div>
+
+            <div class="col-span-8">
+              <label class="muted" for="poNotes">Notes (optional)</label>
+              <textarea id="poNotes" class="textarea" placeholder="Any remarks to supplier…"></textarea>
+            </div>
+
+            <div class="col-span-12 actions">
+              <button class="btn" id="placeOrderBtn">Place Order</button>
+              <button class="btn secondary" id="placeClear">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order History (merged) -->
+      <div class="view" id="view-history">
+        <h2 style="margin:6px 0 12px;">Order History</h2>
+        <div class="card">
+          <table>
+            <colgroup>
+              <col style="width:12%"/>
+              <col />
+              <col style="width:22%"/>
+              <col style="width:10%"/>
+              <col style="width:12%"/>
+              <col style="width:14%"/>
+              <col style="width:14%"/>
+            </colgroup>
+            <thead>
+              <tr>
+                <th>PO ID</th>
+                <th>Title</th>
+                <th>Supplier</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Order Date</th>
+                <th>Payment</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Help Modal -->
+  <div class="help-backdrop" id="helpBackdrop" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-modal">
+      <div class="help-head">
+        <div class="help-title" id="helpTitle">Stock Manager Help & FAQs</div>
+        <button class="help-close" id="helpClose">Close</button>
+      </div>
+      <div class="help-body">
+        <div class="faq-item">
+          <p class="faq-q">How do I restock a low or out-of-stock title?</p>
+          <p class="faq-a">Open <a href="#catalogue" class="deeplink">Catalogue</a>, filter by status, then click <strong>Create PO</strong> on that row.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Where do I create a new purchase order?</p>
+          <p class="faq-a">Go to <a href="#place" class="deeplink">Place Order</a>. Start typing a title to auto-fill price and supplier from the catalogue.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">What do the stock statuses mean?</p>
+          <p class="faq-a"><strong>OK</strong> = available &gt; 3, <strong>Low</strong> = 1–3, <strong>Out of stock</strong> = 0. You can also see alerts on <a href="#dashboard" class="deeplink">Dashboard</a>.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">How does the title autocomplete work?</p>
+          <p class="faq-a">In <a href="#place" class="deeplink">Place Order</a>, typing a title opens suggestions from the current catalogue and fills price, supplier, and a suggested quantity.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Can I edit or cancel a purchase order?</p>
+          <p class="faq-a">Not in this demo. Add a new PO with corrected details and leave a note; the history keeps the audit trail.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Why is the payment status showing “Unpaid”?</p>
+          <p class="faq-a">This screen tracks ordering. Payment updates are handled by the accounting workflow and will reflect here once paid.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Where can I review past orders?</p>
+          <p class="faq-a">Check <a href="#history" class="deeplink">Order History</a> for PO ID, supplier, quantity, totals, and payment status.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">How do I clear catalogue filters?</p>
+          <p class="faq-a">Use the <strong>Clear</strong> button in <a href="#catalogue" class="deeplink">Catalogue</a> to reset search and status filters.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ===== Demo Data (price & supplier are predefined) =====
+  let CATALOGUE = [
+    { id:1, title:'Clean Code', author:'Robert C. Martin', year:2008, available:1, min:3, price:850,  supplier:'TechBooks Ltd.' },
+    { id:2, title:'You Don’t Know JS', author:'Kyle Simpson', year:2015, available:0, min:2, price:900,  supplier:'JS Guild' },
+    { id:3, title:'Design Patterns', author:'Gamma et al.', year:1994, available:4, min:2, price:1100, supplier:'Pragmatic Press' },
+    { id:4, title:'The Pragmatic Programmer', author:'Hunt & Thomas', year:1999, available:2, min:3, price:950,  supplier:'Pragmatic Press' },
+    { id:5, title:'Refactoring', author:'Martin Fowler', year:1999, available:5, min:2, price:1200, supplier:'Refactor House' },
+  ];
+
+  let POs = [
+    { id:'PO-2201', title:'Clean Architecture', supplier:'TechBooks Ltd.', qty:10, unit:850, total:8500, ordered:'2025-11-02', paymentStatus:'Unpaid', status:'Ordered' },
+    { id:'PO-2202', title:'Database Internals', supplier:'DataPress',     qty:6,  unit:900, total:5400, ordered:'2025-11-04', paymentStatus:'Paid',   status:'Delivered' },
+  ];
+
+  let ACTIVITY = [
+    'Low stock: “Clean Code” (1 available, min 3).',
+    'PO created: PO-2202 — Database Internals (DataPress).',
+  ];
+
+  // ===== UI/Router =====
+  const views = {
+    dashboard: document.getElementById('view-dashboard'),
+    catalogue: document.getElementById('view-catalogue'),
+    place: document.getElementById('view-place'),
+    history: document.getElementById('view-history'),
+  };
+  const menu = document.getElementById('menu');
+  menu.addEventListener('click', (e)=>{
+    const a = e.target.closest('a[data-view]');
+    if(!a) return;
+    e.preventDefault();
+    switchTo(a.dataset.view);
+  });
+
+  function switchTo(key){
+    menu.querySelectorAll('a').forEach(x=>x.classList.toggle('active', x.dataset.view===key));
+    Object.entries(views).forEach(([k,el])=>{
+      if(k===key){ el.classList.add('active'); } else { el.classList.remove('active'); }
+    });
+    const first = views[key].querySelector('button, a, input, select, textarea');
+    if(first) first.focus({preventScroll:true});
+
+    if(key==='catalogue') renderCatalogue();
+    if(key==='history') renderHistory();
+  }
+
+  // Apply deep link from hash (used by Help links)
+  function applyHash(){
+    const key = location.hash.slice(1);
+    if(views[key]){
+      switchTo(key);
+      hideHelp();
+      setTimeout(()=>{ views[key].scrollIntoView({behavior:'smooth', block:'start'}); }, 80);
+    }
+  }
+  window.addEventListener('hashchange', applyHash);
+
+  // ===== Utils =====
+  const fmtINR = n => '₹' + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+  const escapeHtml = s => String(s).replace(/[&<>"'`=\/]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'}[m]));
+  const today = () => new Date().toISOString().slice(0,10);
+  const randId = p => p + '-' + Math.random().toString(36).slice(2,8).toUpperCase();
+
+  function coverDataUri(title){
+    const initials = title.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const svg =
+      `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='112'>
+        <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+          <stop offset='0%' stop-color='#0ea5e9'/><stop offset='100%' stop-color='#10b981'/>
+        </linearGradient></defs>
+        <rect rx='10' ry='10' width='100%' height='100%' fill='url(#g)'/>
+        <text x='50%' y='56%' dominant-baseline='middle' text-anchor='middle'
+              font-family='Inter,Arial' font-size='28' fill='white' font-weight='800'>${initials}</text>
+      </svg>`;
+    const base64 = btoa(unescape(encodeURIComponent(svg)));
+    return 'data:image/svg+xml;base64,' + base64;
+  }
+
+  // ===== Dashboard =====
+  function computeTiles(){
+    const low = CATALOGUE.filter(b => b.available>0 && b.available<=3).length;
+    const out = CATALOGUE.filter(b => b.available===0).length;
+
+    document.getElementById('kTitles').textContent = CATALOGUE.length;
+    document.getElementById('kLow').textContent = low;
+    document.getElementById('kOut').textContent = out;
+    document.getElementById('kPendingPO').textContent = POs.length;
+
+    document.getElementById('activityFeed').innerHTML =
+      ACTIVITY.slice(0,8).map(a=>`<li>${escapeHtml(a)}</li>`).join('');
+
+    renderAlertsDash();
+  }
+
+  function renderAlertsDash(){
+    const alerts = CATALOGUE.filter(b => b.available===0 || (b.available>0 && b.available<=3));
+    const body = document.getElementById('alertsBodyDash');
+    body.innerHTML = alerts.map(b=>`
+      <tr>
+        <td><img class="cover" src="${coverDataUri(b.title)}" alt=""></td>
+        <td title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</td>
+        <td title="${escapeHtml(b.author)}">${escapeHtml(b.author)}</td>
+        <td>${b.available}</td>
+        <td>${statusTag(b)}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ===== Catalogue =====
+  const catBody = document.getElementById('catalogueBody');
+  const catSearch = document.getElementById('catSearch');
+  const catStatus = document.getElementById('catStatus');
+  const catClear = document.getElementById('catClear');
+
+  function statusTag(book){
+    if (book.available === 0) return '<span class="tag danger">Out of stock</span>';
+    if (book.available <= 3) return '<span class="tag warn">Low</span>';
+    return '<span class="tag">OK</span>';
+  }
+
+  function filteredCatalogue(){
+    const q = (catSearch.value||'').trim().toLowerCase();
+    const s = catStatus.value;
+    return CATALOGUE.filter(b=>{
+      const matchQ = b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+      let matchS = true;
+      if(s==='ok') matchS = b.available>3;
+      if(s==='low') matchS = b.available>0 && b.available<=3;
+      if(s==='out') matchS = b.available===0;
+      return matchQ && matchS;
+    });
+  }
+
+  function renderCatalogue(){
+    const rows = filteredCatalogue();
+    catBody.innerHTML = rows.map(b=>`
+      <tr>
+        <td><img class="cover" src="${coverDataUri(b.title)}" alt=""></td>
+        <td title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</td>
+        <td title="${escapeHtml(b.author)}">${escapeHtml(b.author)}</td>
+        <td>${b.year}</td>
+        <td>${b.available}</td>
+        <td>${statusTag(b)}</td>
+        <td><button class="btn" style="height:34px;padding:0 10px;" data-place="${b.id}">Create PO</button></td>
+      </tr>
+    `).join('');
+
+    catBody.querySelectorAll('button[data-place]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = Number(btn.dataset.place);
+        const book = CATALOGUE.find(x=>x.id===id);
+        gotoPlaceOrderPrefill(book);
+      });
+    });
+  }
+
+  catSearch.addEventListener('input', renderCatalogue);
+  catStatus.addEventListener('change', renderCatalogue);
+  catClear.addEventListener('click', ()=>{
+    catSearch.value=''; catStatus.value='';
+    renderCatalogue();
+  });
+
+  // ===== Place Order (manual search + from catalogue)
+  let selectedBook = null;
+
+  function gotoPlaceOrderPrefill(book){
+    selectedBook = book;
+    document.getElementById('poCover').src = coverDataUri(book.title);
+    document.getElementById('poTitle').value = `${book.title} — ${book.author}`;
+    document.getElementById('poPrice').value = book.price ? fmtINR(book.price) : '—';
+    document.getElementById('poQty').value = Math.max( (book.min||2)*2, 5 );
+    document.getElementById('poNotes').value = `Restock due to ${book.available===0?'out of stock':'low stock'} (current ${book.available}, min ${book.min}). Supplier: ${book.supplier}.`;
+    switchTo('place');
+  }
+
+  // Autocomplete logic
+  const titleInput   = document.getElementById('poTitle');
+  const titleSuggest = document.getElementById('titleSuggest');
+
+  function openSuggest(list){
+    titleSuggest.innerHTML = list.map(b=>`
+      <div class="suggest-item" data-id="${b.id}">
+        <img class="cover" src="${coverDataUri(b.title)}" alt="">
+        <div>
+          <div class="title">${escapeHtml(b.title)}</div>
+          <div class="meta">${escapeHtml(b.author)} • ${fmtINR(b.price)} • ${escapeHtml(b.supplier)}</div>
+        </div>
+      </div>
+    `).join('');
+    titleSuggest.classList.add('show');
+  }
+  function closeSuggest(){ titleSuggest.classList.remove('show'); }
+
+  titleInput.addEventListener('input', ()=>{
+    const q = titleInput.value.trim().toLowerCase();
+    if(!q){ closeSuggest(); selectedBook=null; document.getElementById('poPrice').value=''; document.getElementById('poCover').src=''; return; }
+    const list = CATALOGUE.filter(b => b.title.toLowerCase().includes(q));
+    if(list.length){ openSuggest(list.slice(0,8)); } else { closeSuggest(); }
+  });
+
+  titleSuggest.addEventListener('click', (e)=>{
+    const item = e.target.closest('.suggest-item');
+    if(!item) return;
+    const id = Number(item.dataset.id);
+    const book = CATALOGUE.find(b=>b.id===id);
+    selectedBook = book;
+    titleInput.value = `${book.title} — ${book.author}`;
+    document.getElementById('poPrice').value = fmtINR(book.price);
+    document.getElementById('poCover').src = coverDataUri(book.title);
+    if(!document.getElementById('poQty').value){
+      document.getElementById('poQty').value = Math.max((book.min||2)*2, 5);
+    }
+    closeSuggest();
+  });
+
+  document.addEventListener('click', (e)=>{
+    if(!titleSuggest.contains(e.target) && e.target!==titleInput){ closeSuggest(); }
+  });
+
+  document.getElementById('placeClear').addEventListener('click', ()=>{
+    selectedBook = null;
+    document.getElementById('poCover').src = '';
+    ['poTitle','poPrice','poQty','poNotes'].forEach(id=>document.getElementById(id).value='');
+    closeSuggest();
+  });
+
+  document.getElementById('placeOrderBtn').addEventListener('click', ()=>{
+    if(!selectedBook){
+      // try to match by typed title (before the " — " author split)
+      const typed = titleInput.value.split(' — ')[0].trim().toLowerCase();
+      const guess = CATALOGUE.find(b => b.title.toLowerCase() === typed);
+      if(guess){ selectedBook = guess; }
+    }
+    if(!selectedBook) return;
+
+    const qty  = Number(document.getElementById('poQty').value);
+    if(qty<=0) return;
+
+    const unit = selectedBook.price || 0;
+    const id = randId('PO');
+    const po = {
+      id,
+      title: selectedBook.title,
+      supplier: selectedBook.supplier || '—',
+      qty,
+      unit,
+      total: qty*unit,
+      ordered: today(),
+      paymentStatus: 'Unpaid',
+      status: 'Ordered'
+    };
+    POs.unshift(po);
+    ACTIVITY.unshift(`PO created: ${po.id} — ${po.title} (${po.supplier}) x${qty} for ${fmtINR(po.total)}`);
+
+    // Reset + navigate
+    document.getElementById('placeClear').click();
+    computeTiles();
+    renderHistory();
+    switchTo('history');
+  });
+
+  // ===== Order History (merged) =====
+  const historyBody = document.getElementById('historyBody');
+  function renderHistory(){
+    const rows = [...POs].sort((a,b)=> b.ordered.localeCompare(a.ordered));
+    historyBody.innerHTML = rows.map(h=>`
+      <tr>
+        <td>${h.id}</td>
+        <td title="${escapeHtml(h.title)}">${escapeHtml(h.title)}</td>
+        <td title="${escapeHtml(h.supplier)}">${escapeHtml(h.supplier)}</td>
+        <td>${h.qty}</td>
+        <td>${fmtINR(h.total)}</td>
+        <td>${h.ordered}</td>
+        <td>${h.paymentStatus==='Paid' ? '<span class="tag success">Paid</span>' : '<span class="tag danger">Unpaid</span>'}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ===== Help modal logic =====
+  const helpBtn = document.getElementById('nav-help');
+  const helpBackdrop = document.getElementById('helpBackdrop');
+  const helpClose = document.getElementById('helpClose');
+
+  function showHelp(){ helpBackdrop.classList.add('show'); }
+  function hideHelp(){ helpBackdrop.classList.remove('show'); }
+
+  helpBtn?.addEventListener('click', (e)=>{ e.preventDefault(); showHelp(); });
+  helpClose?.addEventListener('click', hideHelp);
+  helpBackdrop?.addEventListener('click', (e)=>{ if(e.target===helpBackdrop) hideHelp(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && helpBackdrop.classList.contains('show')) hideHelp(); });
+
+  // ===== Boot =====
+  function boot(){
+    computeTiles();
+    renderCatalogue();
+    renderHistory();
+    document.getElementById('poCover').src = coverDataUri('New Book');
+    if (location.hash) applyHash();
+  }
+  boot();
+</script>
+</body>
+</html>
